@@ -63,3 +63,20 @@ fastlane/Preview.html
 fastlane/screenshots
 fastlane/test_output
 fastlane/readme.md
+
+# IDEA's own gitignore
+/.idea/modules.xml
+/.idea/navEditor.xml
+.DS_Store
+/build
+/captures
+.gitignore
+build.gradle
+libs/
+proguard-rules.pro
+src/main/AndroidManifest.xml
+src/release/
+!/build.gradle
+!/app/build.gradle
+/src/debug/res/values/google_maps_api.xml
+
