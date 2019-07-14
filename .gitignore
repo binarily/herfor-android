@@ -79,4 +79,4 @@ src/release/
 !/build.gradle
 !/app/build.gradle
 /src/debug/res/values/google_maps_api.xml
-
+google_maps_api.xml
