@@ -80,3 +80,4 @@ src/release/
 !/app/build.gradle
 /src/debug/res/values/google_maps_api.xml
 google_maps_api.xml
+gradle/wrapper/gradle-wrapper.jar
