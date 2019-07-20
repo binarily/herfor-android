@@ -3,7 +3,8 @@
                                                    xmlns:tools="http://schemas.android.com/tools"
                                                    xmlns:android="http://schemas.android.com/apk/res/android"
                                                    android:layout_height="match_parent"
-                                                   android:layout_width="match_parent">
+                                                   android:layout_width="match_parent"
+                                                   app:layout_behavior="@string/appbar_scrolling_view_behavior">
     <fragment
             xmlns:map="http://schemas.android.com/apk/res-auto"
             android:layout_width="match_parent"
@@ -22,7 +23,7 @@
             android:layout_marginEnd="16dp" android:layout_marginBottom="16dp"
             app:layout_constraintEnd_toEndOf="parent" android:focusable="true"
             android:enabled="false"
-            app:srcCompat="@drawable/ic_add" app:backgroundTint="@color/colorAccentTranslucent"/>
+            app:srcCompat="@drawable/add_to_location" app:backgroundTint="@color/colorAccentTranslucent"/>
     <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
