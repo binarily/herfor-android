@@ -1,5 +1,5 @@
 package pl.herfor.android.objects
 
 enum class SeverityType {
-    GREEN, YELLOW, RED
+    GREEN, YELLOW, RED, NONE
 }

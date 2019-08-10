@@ -1,14 +1,14 @@
 package pl.herfor.android.objects
 
-import lombok.Data
 import java.util.*
 
-@Data
-class MarkerProperties(
+data class MarkerProperties(
     val creationDate: Date,
     val accidentType: AccidentType,
     val severityType: SeverityType
 ) {
+    constructor(accidentType: AccidentType) : this(Date(System.currentTimeMillis()), accidentType, SeverityType.GREEN)
+
     fun getGlyph(): Int {
         return getResId(
             "ic_${accidentType.toString().toLowerCase()}_${severityType.toString().toLowerCase()}",

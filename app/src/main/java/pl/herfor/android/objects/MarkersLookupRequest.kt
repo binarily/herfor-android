@@ -1,13 +1,9 @@
 package pl.herfor.android.objects
 
-import lombok.AllArgsConstructor
-import lombok.Data
-import lombok.NoArgsConstructor
+import java.util.*
 
-@Data
-@AllArgsConstructor
-@NoArgsConstructor
-class MarkersLookupRequest {
-    var northEast: Point? = null
-    var southWest: Point? = null
-}
+data class MarkersLookupRequest constructor(
+    var northEast: Point? = null,
+    var southWest: Point? = null,
+    var date: Date? = null
+)

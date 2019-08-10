@@ -23,7 +23,7 @@
             android:layout_marginEnd="16dp" android:layout_marginBottom="16dp"
             app:layout_constraintEnd_toEndOf="parent" android:focusable="true"
             android:enabled="false"
-            app:srcCompat="@drawable/add_to_location" app:backgroundTint="@color/colorAccentTranslucent"/>
+            app:srcCompat="@drawable/add_to_location" app:backgroundTint="@color/colorSecondaryTranslucent"/>
     <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

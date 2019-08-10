@@ -2,6 +2,10 @@
 <resources>
     <color name="colorPrimary">#008577</color>
     <color name="colorPrimaryDark">#00574B</color>
-    <color name="colorAccent">#D81B60</color>
-    <color name="colorAccentTranslucent">#AAD81B60</color>
+    <color name="colorSecondary">#D81B60</color>
+    <color name="colorSecondaryTranslucent">#AAD81B60</color>
+    <color name="colorGreenSeverity">#8BC34A</color>
+    <color name="colorYellowSeverity">#FFC107</color>
+    <color name="colorRedSeverity">#F44336</color>
+    <color name="colorGrey">#607D8B</color>
 </resources>
