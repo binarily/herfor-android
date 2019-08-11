@@ -1,8 +1,8 @@
 package pl.herfor.android.viewmodels
 
-import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import com.google.android.gms.maps.model.Marker
 import com.google.gson.GsonBuilder
 import pl.herfor.android.objects.MarkerData
 import pl.herfor.android.objects.MarkersLookupRequest
@@ -33,6 +33,7 @@ class MarkerViewModel : ViewModel() {
 
     //Markers
     private val markersHashMap: HashMap<Point, MarkerData> = HashMap()
+    val mapMarkers = HashMap<String, Marker>()
 
     //Settings
     var locationEnabled = false
@@ -91,7 +92,6 @@ class MarkerViewModel : ViewModel() {
     private fun markersAddCallback(): Callback<MarkerData> {
         return object : Callback<MarkerData> {
             override fun onFailure(call: Call<MarkerData>, t: Throwable) {
-                Log.e("ADD", t.localizedMessage)
                 addMarkerStatusObservable.value = false
             }
 

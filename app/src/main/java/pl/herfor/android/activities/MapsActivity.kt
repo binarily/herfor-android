@@ -2,11 +2,7 @@ package pl.herfor.android.activities
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.content.pm.PackageManager
-import android.content.res.ColorStateList
 import android.graphics.drawable.TransitionDrawable
-import android.location.Geocoder
-import android.location.Location
 import android.os.Bundle
 import android.text.format.DateUtils
 import android.view.View
@@ -14,17 +10,16 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.Observer
-import androidx.lifecycle.ViewModelProviders
-import com.google.android.gms.location.FusedLocationProviderClient
-import com.google.android.gms.location.LocationServices
+import androidx.lifecycle.ViewModelProvider
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
+import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.material.bottomsheet.BottomSheetBehavior
+import com.google.android.material.chip.Chip
 import com.google.android.material.snackbar.Snackbar
 import com.karumi.dexter.Dexter
 import com.karumi.dexter.PermissionToken
@@ -38,39 +33,37 @@ import kotlinx.android.synthetic.main.fragment_maps.*
 import kotlinx.android.synthetic.main.sheet_add.*
 import kotlinx.android.synthetic.main.sheet_details.*
 import pl.herfor.android.R
-import pl.herfor.android.objects.AccidentType
-import pl.herfor.android.objects.MarkerData
-import pl.herfor.android.objects.MarkerProperties
-import pl.herfor.android.objects.MarkersLookupRequest
+import pl.herfor.android.contexts.MarkerContext
+import pl.herfor.android.contracts.MarkerContract
+import pl.herfor.android.objects.*
+import pl.herfor.android.presenters.MarkerViewPresenter
 import pl.herfor.android.utils.toColor
 import pl.herfor.android.utils.toHumanReadableString
-import pl.herfor.android.utils.toLatLng
 import pl.herfor.android.utils.toPoint
 import pl.herfor.android.viewmodels.MarkerViewModel
 import kotlin.concurrent.thread
 
 
-class MapsActivity : AppCompatActivity() {
-
+class MapsActivity : AppCompatActivity(), MarkerContract.View {
     private lateinit var mMap: GoogleMap
     private lateinit var activityView: View
-    private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var detailsSheet: BottomSheetBehavior<ConstraintLayout>
     private lateinit var addSheet: BottomSheetBehavior<ConstraintLayout>
-    private lateinit var model: MarkerViewModel
+    private lateinit var snackbar: Snackbar
+    private lateinit var presenter: MarkerContract.Presenter
 
-    private val zoomLevel = 15.0F
-    private val buttonAnimationDuration = 200
+    private var buttonState = RightButtonMode.DISABLED
 
-    private val markers = HashMap<String, Marker>()
+    private val ZOOM_LEVEL = 15.0F
+    private val BUTTON_ANIMATION_DURATION = 200
 
+    //TODO: internationalization
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        activityView = findViewById(android.R.id.content)
+        activityView = findViewById(R.id.activity_main)
 
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
-        model = ViewModelProviders.of(this).get(MarkerViewModel::class.java)
+        presenter = MarkerViewPresenter(ViewModelProvider(this)[MarkerViewModel::class.java], this, MarkerContext(this))
 
         detailsSheet = BottomSheetBehavior.from(details_sheet)
         detailsSheet.state = BottomSheetBehavior.STATE_HIDDEN
@@ -78,13 +71,21 @@ class MapsActivity : AppCompatActivity() {
         addSheet = BottomSheetBehavior.from(add_sheet)
         addSheet.state = BottomSheetBehavior.STATE_HIDDEN
 
-        addButton.setOnClickListener { onRightButtonClick() }
-        submitMarkerButton.setOnClickListener { submitMarker() }
+        submitMarkerButton.setOnClickListener { prepareMarkerForSubmission() }
         addChipGroup.setOnCheckedChangeListener { _, checkedId -> submitMarkerButton.isEnabled = checkedId != -1 }
+
+        snackbar = Snackbar.make(activityView, "We have lost access to the internet.", Snackbar.LENGTH_INDEFINITE)
+            .setAction("Reload") { handleIdleMap() }
+
 
         val mapFragment = supportFragmentManager
             .findFragmentById(R.id.map) as SupportMapFragment
         mapFragment.getMapAsync { map -> onMapReady(map) }
+    }
+
+    private fun prepareMarkerForSubmission() {
+        val markerProperties = MarkerProperties(AccidentType.values()[(addChipGroup.checkedChipId - 1) % 6])
+        presenter.submitMarker(markerProperties)
     }
 
     private fun onMapReady(googleMap: GoogleMap) {
@@ -92,75 +93,125 @@ class MapsActivity : AppCompatActivity() {
         mMap.uiSettings.isCompassEnabled = false
         mMap.uiSettings.isMapToolbarEnabled = false
         mMap.uiSettings.isMyLocationButtonEnabled = false
+
         mMap.setOnMarkerClickListener {
-            setUpDetailsSheet(it)
+            presenter.displayMarkerDetails(it)
             return@setOnMarkerClickListener true
         }
         mMap.setOnMapClickListener {
-            detailsSheet.state = BottomSheetBehavior.STATE_HIDDEN
-            addSheet.state = BottomSheetBehavior.STATE_HIDDEN
+            dismissSheet()
         }
+        mMap.setOnMyLocationClickListener { presenter.displayMarkerAdd() }
+        mMap.setOnCameraIdleListener(::handleIdleMap)
 
-        this.setUpObservers()
-        mMap.setOnCameraIdleListener(::loadVisibleMarkers)
-        enableLocation(::locationEnabled, ::locationDisabled)
+        presenter.start()
+        presenter.askForLocationPermission()
     }
 
-    private fun setUpDetailsSheet(it: Marker) {
-        mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(it.position, zoomLevel))
-        val markerData = (it.tag as MarkerData)
-        detailsTypeChip.text = markerData.properties.accidentType.toHumanReadableString()
-        detailsSeverityChip.text = markerData.properties.severityType.toHumanReadableString()
-        detailsSeverityChip.chipBackgroundColor = markerData.properties.severityType.toColor(this)
-        detailsTimeTextView.text = "Dodano ${DateUtils.getRelativeTimeSpanString(
-            markerData.properties.creationDate.time,
-            System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE
-        ).toString().toLowerCase()}"
-        addSheet.state = BottomSheetBehavior.STATE_HIDDEN
-        detailsSheet.state = BottomSheetBehavior.STATE_COLLAPSED
-
-        //This may take some while
-        detailsPlaceTextView.text = "..."
-        val position = it.position
-        thread {
-            val geoCoder = Geocoder(this)
-            val matches = geoCoder.getFromLocation(position.latitude, position.longitude, 1)
-            val bestMatch = if (matches.isEmpty()) null else matches[0]
-            runOnUiThread {
-                detailsPlaceTextView.text = bestMatch?.thoroughfare
+    private fun showSheet(sheetVisibility: SheetVisibility) {
+        when (sheetVisibility) {
+            SheetVisibility.DETAILS_SHEET -> {
+                detailsSheet.state = BottomSheetBehavior.STATE_COLLAPSED
+                addSheet.state = BottomSheetBehavior.STATE_HIDDEN
+            }
+            SheetVisibility.ADD_SHEET -> {
+                detailsSheet.state = BottomSheetBehavior.STATE_HIDDEN
+                addSheet.state = BottomSheetBehavior.STATE_COLLAPSED
+            }
+            SheetVisibility.NONE -> {
+                detailsSheet.state = BottomSheetBehavior.STATE_HIDDEN
+                addSheet.state = BottomSheetBehavior.STATE_HIDDEN
             }
         }
     }
 
-    private fun setUpAddSheet() {
-        if (checkLocationPermission { setUpAddSheet() }) {
-            zoomToCurrentLocation(true)
-            addChipGroup.clearCheck()
-            detailsSheet.state = BottomSheetBehavior.STATE_HIDDEN
-            addSheet.state = BottomSheetBehavior.STATE_COLLAPSED
+    override fun dismissSheet() {
+        showSheet(SheetVisibility.NONE)
+    }
+
+    override fun setRightButton(rightButtonMode: RightButtonMode, transition: Boolean) {
+        when (rightButtonMode) {
+            RightButtonMode.ADD_MARKER -> {
+                addButton.backgroundTintList = ContextCompat.getColorStateList(this, R.color.colorSecondary)
+                if (transition) {
+                    val animationDrawable = R.drawable.location_to_add
+                    addButton.setImageDrawable(ContextCompat.getDrawable(this, animationDrawable))
+                    (addButton.drawable as TransitionDrawable).isCrossFadeEnabled = true
+                    (addButton.drawable as TransitionDrawable).startTransition(BUTTON_ANIMATION_DURATION)
+                    addButton.setOnClickListener { presenter.displayMarkerAdd() }
+                }
+            }
+            RightButtonMode.SHOW_LOCATION -> {
+                addButton.backgroundTintList = ContextCompat.getColorStateList(this, R.color.colorSecondary)
+                if (transition) {
+                    val animationDrawable = R.drawable.add_to_location
+                    addButton.setImageDrawable(ContextCompat.getDrawable(this, animationDrawable))
+                    (addButton.drawable as TransitionDrawable).isCrossFadeEnabled = true
+                    (addButton.drawable as TransitionDrawable).startTransition(BUTTON_ANIMATION_DURATION)
+                    addButton.setOnClickListener { presenter.zoomToCurrentLocation() }
+                }
+            }
+            RightButtonMode.DISABLED -> {
+                addButton.backgroundTintList = ContextCompat.getColorStateList(this, R.color.colorSecondaryTranslucent)
+                addButton.setOnClickListener { presenter.askForLocationPermission() }
+            }
+        }
+        buttonState = rightButtonMode
+    }
+
+    override fun moveCamera(position: LatLng, animate: Boolean) {
+        if (animate) {
+            mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(position, ZOOM_LEVEL))
+        } else {
+            mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(position, ZOOM_LEVEL))
+        }
+        presenter.setRightButtonMode(mMap.projection.visibleRegion.latLngBounds)
+    }
+
+    //TODO: replace with data binding
+    override fun showDetailsSheet(markerData: MarkerData) {
+        runOnUiThread {
+            detailsTypeChip.text = markerData.properties.accidentType.toHumanReadableString()
+            detailsSeverityChip.text = markerData.properties.severityType.toHumanReadableString()
+            detailsSeverityChip.chipBackgroundColor = markerData.properties.severityType.toColor(this)
+            detailsTimeTextView.text = "Dodano ${DateUtils.getRelativeTimeSpanString(
+                markerData.properties.creationDate.time,
+                System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE
+            ).toString().toLowerCase()}"
+
+            //This will be filled in showLocationOnDetailsSheet()
+            detailsPlaceTextView.text = "..."
+            showSheet(SheetVisibility.DETAILS_SHEET)
         }
     }
 
-    private fun enableLocation(
-        success: (PermissionGrantedResponse) -> Unit,
-        failure: (PermissionDeniedResponse?) -> Unit = { }
-    ) {
+    override fun showLocationOnDetailsSheet(location: String) {
+        runOnUiThread {
+            detailsPlaceTextView.text = location
+        }
+    }
+
+    override fun showAddSheet() {
+        addChipGroup.clearCheck()
+        showSheet(SheetVisibility.ADD_SHEET)
+    }
+
+    override fun getPermissionForLocation() {
         val snackBarListener = SnackbarOnDeniedPermissionListener.Builder
             .with(activityView, "Location is needed to report incidents and see location on the map.")
             .withOpenSettingsButton("Settings")
             .build()
-        @SuppressLint("MissingPermission")
         val overallListener = object : PermissionListener {
             override fun onPermissionGranted(response: PermissionGrantedResponse) {
-                success(response)
+                presenter.handleLocationBeingEnabled()
             }
 
             override fun onPermissionDenied(response: PermissionDeniedResponse) {
-                failure(response)
+                presenter.handleLocationBeingDisabled()
             }
 
             override fun onPermissionRationaleShouldBeShown(permission: PermissionRequest, token: PermissionToken) {
-                failure(null)
+                presenter.handleLocationBeingDisabled()
             }
         }
         Dexter.withActivity(this)
@@ -169,147 +220,73 @@ class MapsActivity : AppCompatActivity() {
             .check()
     }
 
-    @SuppressLint("MissingPermission")
-    private fun locationEnabled(response: PermissionGrantedResponse) {
-        model.locationEnabled = true
-        mMap.isMyLocationEnabled = true
-        mMap.setOnMyLocationClickListener { setUpAddSheet() }
-        zoomToCurrentLocation()
-    }
-
-    @SuppressLint("MissingPermission")
-    private fun locationDisabled(response: PermissionDeniedResponse?) {
-        model.locationEnabled = false
-        mMap.isMyLocationEnabled = false
-    }
-
-    private fun loadVisibleMarkers() {
-        rightButtonModify()
+    private fun handleIdleMap() {
         val bounds = mMap.projection.visibleRegion.latLngBounds
-        val request = MarkersLookupRequest(bounds.northeast.toPoint(), bounds.southwest.toPoint(), null)
-        model.loadAllVisibleMarkers(request)
-    }
-
-    private fun rightButtonModify() {
-        if (checkLocationPermission { rightButtonModify() }) {
-            fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
-                if (location != null) {
-                    addButton.backgroundTintList =
-                        ColorStateList.valueOf(ContextCompat.getColor(this, R.color.colorSecondary))
-                    addButton.setOnClickListener { onRightButtonClick() }
-                    //Area type changes, but not acted on yet
-                    if (mMap.projection.visibleRegion.latLngBounds.contains(location.toLatLng()) xor model.insideLocationArea) {
-                        model.insideLocationArea = !model.insideLocationArea
-                        val animationDrawable =
-                            if (model.insideLocationArea) R.drawable.location_to_add else R.drawable.add_to_location
-                        addButton.setImageDrawable(ContextCompat.getDrawable(this, animationDrawable))
-                        (addButton.drawable as TransitionDrawable).isCrossFadeEnabled = true
-                        (addButton.drawable as TransitionDrawable).startTransition(buttonAnimationDuration)
-                    }
-                }
-            }
-        } else {
-            addButton.backgroundTintList =
-                ColorStateList.valueOf(ContextCompat.getColor(this, R.color.colorSecondaryTranslucent))
-            addButton.setOnClickListener { enableLocation(::locationEnabled, ::locationDisabled) }
+        thread {
+            presenter.setRightButtonMode(bounds)
+            presenter.loadVisibleMarkers(bounds.northeast.toPoint(), bounds.southwest.toPoint())
         }
     }
 
-    private fun onRightButtonClick() {
-        if (model.insideLocationArea) {
-            setUpAddSheet()
-        } else {
-            zoomToCurrentLocation(animate = true)
-        }
+    override fun changeRightButtonState(rightButtonMode: RightButtonMode, transition: Boolean) {
+        setRightButton(rightButtonMode, transition)
     }
 
-    @SuppressLint("MissingPermission")
-    private fun zoomToCurrentLocation(animate: Boolean = false) {
-        fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
-            if (location != null) {
-                if (animate) {
-                    mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(location.toLatLng(), zoomLevel))
-                } else {
-                    mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(location.toLatLng(), zoomLevel))
-                }
-            }
-        }
-    }
-
-    private fun setUpObservers() {
-        var snackbar: Snackbar? = null
-        model.newMarkerObservable.observe(this, Observer<MarkerData> { marker ->
-            val mapsMarker = mMap.addMarker(
-                MarkerOptions()
-                    .position(marker.location.toLatLng())
-                    .icon(BitmapDescriptorFactory.fromResource(marker.properties.getGlyph()))
-                    .anchor(0.5F, 0.5F)
-            )
-            mapsMarker.tag = marker
-            markers[marker?.id!!] = mapsMarker
-        })
-        model.removeMarkerObservable.observe(this, Observer<MarkerData> { marker ->
-            markers[marker.id!!]?.remove()
-        })
-        model.addMarkerStatusObservable.observe(this, Observer<Boolean> { status ->
-            when (status) {
-                true -> {
-                    addSheet.state = BottomSheetBehavior.STATE_HIDDEN
-                    submitMarkerButton.isEnabled = true
-                }
-                false -> {
-                    submitMarkerFailure()
-                }
-            }
-        })
-        model.connectionStatusObservable.observe(this, Observer<Boolean> { status ->
-            when (status) {
-                true -> {
-                    snackbar?.dismiss()
-                    snackbar = null
-                }
-                false -> {
-                    snackbar =
-                        Snackbar.make(activityView, "We have lost access to the internet.", Snackbar.LENGTH_INDEFINITE)
-                            .setAction("Reload") { loadVisibleMarkers() }
-                    snackbar!!.show()
-                }
-            }
-        })
-        //TODO: observers for connection errors, removing markers
-    }
-
-    @SuppressLint("MissingPermission")
-    private fun submitMarker() {
-        if (checkLocationPermission { submitMarker() }) {
-            submitMarkerButton.isEnabled = false
-            fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
-                if (location != null) {
-                    val markerProperties = MarkerProperties(AccidentType.values()[addChipGroup.checkedChipId - 1])
-                    val marker = MarkerData(location.toPoint(), markerProperties)
-                    model.addMarker(marker)
-                } else {
-                    submitMarkerFailure()
-                }
-            }
-                .addOnFailureListener {
-                    submitMarkerFailure()
-                }
-        }
-    }
-
-    private fun submitMarkerFailure() {
+    override fun showSubmitMarkerFailure() {
         Toast.makeText(this, "Nie udało się wysłać zgłoszenia. Spróbuj ponownie", Toast.LENGTH_SHORT).show()
         submitMarkerButton.isEnabled = true
     }
 
-    private fun checkLocationPermission(successFunction: () -> Unit): Boolean {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
-            != PackageManager.PERMISSION_GRANTED
-        ) {
-            enableLocation({ successFunction() })
-            return false
+    override fun showConnectionError() {
+        snackbar.show()
+    }
+
+    override fun dismissConnectionError() {
+        snackbar.dismiss()
+    }
+
+    @SuppressLint("MissingPermission")
+    override fun setLocationStateForMap(state: Boolean) {
+        mMap.isMyLocationEnabled = state
+        if (state) {
+            presenter.setRightButtonMode(mMap.projection.visibleRegion.latLngBounds)
         }
-        return true
+    }
+
+    override fun dismissAddSheet() {
+        submitMarkerButton.isEnabled = true
+        showSheet(SheetVisibility.NONE)
+    }
+
+    override fun addMarker(marker: MarkerData): Marker {
+        val mapsMarker = mMap.addMarker(
+            MarkerOptions()
+                .position(marker.location.toLatLng())
+                .icon(BitmapDescriptorFactory.fromResource(marker.properties.getGlyph()))
+                .anchor(0.5F, 0.5F)
+        )
+        mapsMarker.tag = marker
+        return mapsMarker
+    }
+
+    override fun removeMarker(marker: Marker) {
+        marker.remove()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putInt("chipId", addChipGroup.checkedChipId)
+        outState.putString("rightButtonState", buttonState.toString())
+    }
+
+    override fun onRestoreInstanceState(savedInstanceState: Bundle?) {
+        super.onRestoreInstanceState(savedInstanceState)
+        addChipGroup.check(savedInstanceState?.getInt("chipId") ?: Chip.NO_ID)
+        setRightButton(RightButtonMode.valueOf(savedInstanceState?.getString("rightButtonState") ?: "DISABLED"), true)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        presenter.stop()
     }
 }
