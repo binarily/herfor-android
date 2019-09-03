@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="geocoder_error">Błąd połączenia</string>
+    <string name="connection_loss_explanation">Utraciliśmy dostęp do internetu.</string>
+    <string name="geocoder_unknown">Nieznana lokalizacja</string>
+    <string name="location_explanation">"Potrzebujemy dostępu do lokalizacji, abyś mógł zgłaszać wypadki i widzieć swoją
+        lokalizację."
+    </string>
+    <string name="marker_submit_error">Nie udało się wysłać zgłoszenia. Spróbuj ponownie</string>
+    <string name="reload">Załaduj ponownie</string>
+    <string name="settings_button">Ustawienia</string>
+    <string name="time_details_description">Dodano %s</string>
+    <string name="filter_sheet_title">Filtruj na mapie i w powiadomieniach</string>
+    <string name="channel_name">Powiadomienia o zdarzeniach</string>
+    <string name="channel_description">Otrzymuj powaidomienia o zdarzeniach wokół ciebie.</string>
+    <string name="green">Zielony</string>
+    <string name="red">Czerwony</string>
+    <string name="yellow">Żółty</string>
+    <string name="bike">Rower</string>
+    <string name="bus">Autobus</string>
+    <string name="metro">Metro</string>
+    <string name="pedestrian">Pieszo</string>
+    <string name="train">Pociąg</string>
+    <string name="tram">Tramwaj</string>
+    <string name="add">Dodaj</string>
+</resources>

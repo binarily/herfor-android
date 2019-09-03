@@ -1,4 +1,27 @@
 <resources>
-    <string name="app_name">HerFor</string>
-    <string name="title_activity_maps">HerFor</string>
+    <string name="app_name" translatable="false">Obs!</string>
+    <string name="title_activity_maps" translatable="false">Obs!</string>
+    <string name="default_notification_channel_id" translatable="false">herfor-notifications</string>
+    <string name="geocoder_error">Connection error</string>
+    <string name="geocoder_unknown">Unknown location</string>
+    <string name="marker_submit_error">Could not send the report. Try again.</string>
+    <string name="settings_button">Settings</string>
+    <string name="location_explanation">Location is needed to report incidents and see location on the map.</string>
+    <string name="time_details_description">Added %s</string>
+    <string name="connection_loss_explanation">We have lost access to the internet.</string>
+    <string name="reload">Reload</string>
+    <string name="channel_name">Incident notifications</string>
+    <string name="channel_description">Receive notifications about incidents around you.</string>
+    <string name="filter_sheet_title">Filter on the map and in notifications</string>
+    <string name="green">Green</string>
+    <string name="red">Red</string>
+    <string name="yellow">Yellow</string>
+    <string name="bus">Bus</string>
+    <string name="tram">Tram</string>
+    <string name="metro">Metro</string>
+    <string name="train">Train</string>
+    <string name="bike">Bike</string>
+    <string name="pedestrian">Pedestrian</string>
+    <string name="add">Add</string>
+    <string name="placeholder" translatable="false">...</string>
 </resources>

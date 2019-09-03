@@ -41,4 +41,9 @@ dependencies {
     implementation 'androidx.lifecycle:lifecycle-extensions:2.2.0-alpha03'
     implementation 'com.karumi:dexter:5.0.0'
     implementation 'com.google.android.gms:play-services-location:17.0.0'
+    implementation 'com.google.firebase:firebase-core:17.1.0'
+    implementation 'com.google.firebase:firebase-messaging:20.0.0'
+    implementation "com.android.support:support-compat:28.0.0"
 }
+
+apply plugin: 'com.google.gms.google-services'

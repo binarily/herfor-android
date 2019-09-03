@@ -16,7 +16,8 @@
             android:layout_marginStart="16dp"
             app:layout_constraintTop_toTopOf="parent" android:layout_marginTop="16dp"
             app:layout_constraintEnd_toEndOf="parent" android:layout_marginEnd="16dp"
-            android:text="ul. Grochowska" android:textAppearance="@style/TextAppearance.AppCompat.Headline"/>
+            android:text="@string/placeholder"
+            android:textAppearance="@style/TextAppearance.AppCompat.Headline" />
     <com.google.android.material.chip.ChipGroup android:layout_width="match_parent"
                                                 android:layout_height="wrap_content"
                                                 app:layout_constraintTop_toBottomOf="@+id/detailsPlaceTextView"
@@ -29,12 +30,14 @@
                                                 android:layout_marginTop="8dp">
         <com.google.android.material.chip.Chip android:layout_width="wrap_content"
                                                android:layout_height="wrap_content" android:id="@+id/detailsTypeChip"
-                                               android:text="Autobus"/>
+                android:text="@string/placeholder"
+                android:textColor="@android:color/black" />
         <com.google.android.material.chip.Chip android:layout_width="wrap_content"
                                                android:layout_height="wrap_content"
                                                android:id="@+id/detailsSeverityChip"
-                                               android:text="Żółty" app:chipBackgroundColor="@color/colorYellowSeverity"
-                                               android:textAllCaps="true"/>
+                android:text="@string/placeholder"
+                app:chipBackgroundColor="@color/colorYellowSeverity"
+                android:textColor="@android:color/white" />
     </com.google.android.material.chip.ChipGroup>
     <ImageView
             android:layout_width="wrap_content"
@@ -44,7 +47,7 @@
             android:layout_marginTop="16dp" app:layout_constraintTop_toBottomOf="@+id/detailsChipGroup"
             app:layout_constraintBottom_toBottomOf="parent" android:layout_marginBottom="16dp"/>
     <TextView
-            android:text="Zgłoszono 15 minut temu"
+            android:text="@string/placeholder"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:id="@+id/detailsTimeTextView" app:layout_constraintStart_toEndOf="@+id/imageView"

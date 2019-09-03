@@ -34,30 +34,29 @@ import kotlinx.android.synthetic.main.sheet_add.*
 import kotlinx.android.synthetic.main.sheet_details.*
 import pl.herfor.android.R
 import pl.herfor.android.contexts.MarkerContext
-import pl.herfor.android.contracts.MarkerContract
+import pl.herfor.android.interfaces.MarkerContract
 import pl.herfor.android.objects.*
 import pl.herfor.android.presenters.MarkerViewPresenter
-import pl.herfor.android.utils.toColor
-import pl.herfor.android.utils.toHumanReadableString
+import pl.herfor.android.utils.Constants.Companion.BUTTON_ANIMATION_DURATION
+import pl.herfor.android.utils.Constants.Companion.CHIP_ID_KEY
+import pl.herfor.android.utils.Constants.Companion.RIGHT_BUTTON_STATE_KEY
+import pl.herfor.android.utils.Constants.Companion.ZOOM_LEVEL
 import pl.herfor.android.utils.toPoint
 import pl.herfor.android.viewmodels.MarkerViewModel
 import kotlin.concurrent.thread
 
 
-class MapsActivity : AppCompatActivity(), MarkerContract.View {
+class MapsActivity : AppCompatActivity(), MarkerContract.View, FilterSheetFragmentInterface {
     private lateinit var mMap: GoogleMap
     private lateinit var activityView: View
     private lateinit var detailsSheet: BottomSheetBehavior<ConstraintLayout>
     private lateinit var addSheet: BottomSheetBehavior<ConstraintLayout>
     private lateinit var snackbar: Snackbar
     private lateinit var presenter: MarkerContract.Presenter
+    private lateinit var filterSheet: FilterSheetFragment
 
     private var buttonState = RightButtonMode.DISABLED
 
-    private val ZOOM_LEVEL = 15.0F
-    private val BUTTON_ANIMATION_DURATION = 200
-
-    //TODO: internationalization
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -72,11 +71,17 @@ class MapsActivity : AppCompatActivity(), MarkerContract.View {
         addSheet.state = BottomSheetBehavior.STATE_HIDDEN
 
         submitMarkerButton.setOnClickListener { prepareMarkerForSubmission() }
+        addButton.setOnClickListener { onRightButton() }
+        filterButton.setOnClickListener { showFilterSheet() }
         addChipGroup.setOnCheckedChangeListener { _, checkedId -> submitMarkerButton.isEnabled = checkedId != -1 }
 
-        snackbar = Snackbar.make(activityView, "We have lost access to the internet.", Snackbar.LENGTH_INDEFINITE)
-            .setAction("Reload") { handleIdleMap() }
+        snackbar = Snackbar.make(
+            activityView,
+            getString(R.string.connection_loss_explanation),
+            Snackbar.LENGTH_INDEFINITE
+        )
 
+        filterSheet = FilterSheetFragment()
 
         val mapFragment = supportFragmentManager
             .findFragmentById(R.id.map) as SupportMapFragment
@@ -90,6 +95,7 @@ class MapsActivity : AppCompatActivity(), MarkerContract.View {
 
     private fun onMapReady(googleMap: GoogleMap) {
         mMap = googleMap
+
         mMap.uiSettings.isCompassEnabled = false
         mMap.uiSettings.isMapToolbarEnabled = false
         mMap.uiSettings.isMyLocationButtonEnabled = false
@@ -106,6 +112,7 @@ class MapsActivity : AppCompatActivity(), MarkerContract.View {
 
         presenter.start()
         presenter.askForLocationPermission()
+        presenter.checkForPlayServices()
     }
 
     private fun showSheet(sheetVisibility: SheetVisibility) {
@@ -125,38 +132,43 @@ class MapsActivity : AppCompatActivity(), MarkerContract.View {
         }
     }
 
+    private fun onRightButton() {
+        when (buttonState) {
+            RightButtonMode.ADD_MARKER -> presenter.displayMarkerAdd()
+            RightButtonMode.SHOW_LOCATION -> presenter.zoomToCurrentLocation()
+            RightButtonMode.DISABLED -> presenter.askForLocationPermission()
+        }
+    }
+
     override fun dismissSheet() {
         showSheet(SheetVisibility.NONE)
     }
 
     override fun setRightButton(rightButtonMode: RightButtonMode, transition: Boolean) {
+        buttonState = rightButtonMode
         when (rightButtonMode) {
             RightButtonMode.ADD_MARKER -> {
-                addButton.backgroundTintList = ContextCompat.getColorStateList(this, R.color.colorSecondary)
+                addButton.alpha = 1f
                 if (transition) {
                     val animationDrawable = R.drawable.location_to_add
                     addButton.setImageDrawable(ContextCompat.getDrawable(this, animationDrawable))
                     (addButton.drawable as TransitionDrawable).isCrossFadeEnabled = true
                     (addButton.drawable as TransitionDrawable).startTransition(BUTTON_ANIMATION_DURATION)
-                    addButton.setOnClickListener { presenter.displayMarkerAdd() }
                 }
             }
             RightButtonMode.SHOW_LOCATION -> {
-                addButton.backgroundTintList = ContextCompat.getColorStateList(this, R.color.colorSecondary)
+                addButton.alpha = 1f
                 if (transition) {
                     val animationDrawable = R.drawable.add_to_location
                     addButton.setImageDrawable(ContextCompat.getDrawable(this, animationDrawable))
                     (addButton.drawable as TransitionDrawable).isCrossFadeEnabled = true
                     (addButton.drawable as TransitionDrawable).startTransition(BUTTON_ANIMATION_DURATION)
-                    addButton.setOnClickListener { presenter.zoomToCurrentLocation() }
                 }
             }
             RightButtonMode.DISABLED -> {
-                addButton.backgroundTintList = ContextCompat.getColorStateList(this, R.color.colorSecondaryTranslucent)
-                addButton.setOnClickListener { presenter.askForLocationPermission() }
+                addButton.alpha = 0.8f
             }
         }
-        buttonState = rightButtonMode
     }
 
     override fun moveCamera(position: LatLng, animate: Boolean) {
@@ -174,10 +186,12 @@ class MapsActivity : AppCompatActivity(), MarkerContract.View {
             detailsTypeChip.text = markerData.properties.accidentType.toHumanReadableString()
             detailsSeverityChip.text = markerData.properties.severityType.toHumanReadableString()
             detailsSeverityChip.chipBackgroundColor = markerData.properties.severityType.toColor(this)
-            detailsTimeTextView.text = "Dodano ${DateUtils.getRelativeTimeSpanString(
+            detailsTimeTextView.text = getString(R.string.time_details_description).format(
+                DateUtils.getRelativeTimeSpanString(
                 markerData.properties.creationDate.time,
                 System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE
-            ).toString().toLowerCase()}"
+                ).toString().toLowerCase()
+            )
 
             //This will be filled in showLocationOnDetailsSheet()
             detailsPlaceTextView.text = "..."
@@ -198,8 +212,8 @@ class MapsActivity : AppCompatActivity(), MarkerContract.View {
 
     override fun getPermissionForLocation() {
         val snackBarListener = SnackbarOnDeniedPermissionListener.Builder
-            .with(activityView, "Location is needed to report incidents and see location on the map.")
-            .withOpenSettingsButton("Settings")
+            .with(activityView, getString(R.string.location_explanation))
+            .withOpenSettingsButton(getString(R.string.settings_button))
             .build()
         val overallListener = object : PermissionListener {
             override fun onPermissionGranted(response: PermissionGrantedResponse) {
@@ -233,7 +247,7 @@ class MapsActivity : AppCompatActivity(), MarkerContract.View {
     }
 
     override fun showSubmitMarkerFailure() {
-        Toast.makeText(this, "Nie udało się wysłać zgłoszenia. Spróbuj ponownie", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, getString(R.string.marker_submit_error), Toast.LENGTH_SHORT).show()
         submitMarkerButton.isEnabled = true
     }
 
@@ -248,9 +262,6 @@ class MapsActivity : AppCompatActivity(), MarkerContract.View {
     @SuppressLint("MissingPermission")
     override fun setLocationStateForMap(state: Boolean) {
         mMap.isMyLocationEnabled = state
-        if (state) {
-            presenter.setRightButtonMode(mMap.projection.visibleRegion.latLngBounds)
-        }
     }
 
     override fun dismissAddSheet() {
@@ -275,18 +286,53 @@ class MapsActivity : AppCompatActivity(), MarkerContract.View {
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        outState.putInt("chipId", addChipGroup.checkedChipId)
-        outState.putString("rightButtonState", buttonState.toString())
+        outState.putInt(CHIP_ID_KEY, addChipGroup.checkedChipId)
+        outState.putString(RIGHT_BUTTON_STATE_KEY, buttonState.toString())
     }
 
     override fun onRestoreInstanceState(savedInstanceState: Bundle?) {
         super.onRestoreInstanceState(savedInstanceState)
-        addChipGroup.check(savedInstanceState?.getInt("chipId") ?: Chip.NO_ID)
-        setRightButton(RightButtonMode.valueOf(savedInstanceState?.getString("rightButtonState") ?: "DISABLED"), true)
+        addChipGroup.check(savedInstanceState?.getInt(CHIP_ID_KEY) ?: Chip.NO_ID)
+        setRightButton(
+            RightButtonMode.valueOf(
+                (savedInstanceState?.getString(RIGHT_BUTTON_STATE_KEY)
+                    ?: RightButtonMode.DISABLED).toString()
+            ), true
+        )
+    }
+
+    override fun onResume() {
+        super.onResume()
+        presenter.checkForPlayServices()
     }
 
     override fun onDestroy() {
         super.onDestroy()
         presenter.stop()
     }
+
+    override fun toggleSeverityType(severityType: SeverityType) {
+        presenter.toggleSeverityType(severityType)
+    }
+
+    override fun toggleAccidentType(accidentType: AccidentType) {
+        presenter.toggleAccidentType(accidentType)
+    }
+
+    override fun setSeverityTypeFilters(severityTypes: List<SeverityType>) {
+        filterSheet.setSeverityTypes(severityTypes)
+    }
+
+    override fun setAccidentTypeFilters(accidentTypes: List<AccidentType>) {
+        filterSheet.setAccidentTypes(accidentTypes)
+    }
+
+    override fun removeAllMarkers() {
+        mMap.clear()
+    }
+
+    private fun showFilterSheet() {
+        filterSheet.show(supportFragmentManager, filterSheet.tag)
+    }
+
 }

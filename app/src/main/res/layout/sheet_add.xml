@@ -27,37 +27,43 @@
                                                 android:layout_marginStart="16dp" android:layout_marginEnd="16dp"
                                                 android:id="@+id/addChipGroup">
         <com.google.android.material.chip.Chip android:layout_width="wrap_content"
-                                               android:layout_height="wrap_content" android:text="Autobus"
+                android:layout_height="wrap_content"
+                android:text="@string/bus"
                                                app:chipIcon="@drawable/ic_bus_grey"
                                                style="@style/Widget.MaterialComponents.Chip.Choice"
                                                app:chipIconVisible="true" app:checkedIconVisible="true"
                                                app:checkedIcon="@drawable/ic_checked"/>
         <com.google.android.material.chip.Chip android:layout_width="wrap_content"
-                                               android:layout_height="wrap_content" android:text="Tramwaj"
+                android:layout_height="wrap_content"
+                android:text="@string/tram"
                                                app:chipIcon="@drawable/ic_tram_grey"
                                                style="@style/Widget.MaterialComponents.Chip.Choice"
                                                app:checkedIconVisible="true" app:chipIconVisible="true"
                                                app:checkedIcon="@drawable/ic_checked"/>
         <com.google.android.material.chip.Chip android:layout_width="wrap_content"
-                                               android:layout_height="wrap_content" android:text="Metro"
+                android:layout_height="wrap_content"
+                android:text="@string/metro"
                                                app:chipIcon="@drawable/ic_metro_grey"
                                                style="@style/Widget.MaterialComponents.Chip.Choice"
                                                app:checkedIconVisible="true" app:chipIconVisible="true"
                                                app:checkedIcon="@drawable/ic_checked"/>
         <com.google.android.material.chip.Chip android:layout_width="wrap_content"
-                                               android:layout_height="wrap_content" android:text="Pociąg"
+                android:layout_height="wrap_content"
+                android:text="@string/train"
                                                app:chipIcon="@drawable/ic_rail_grey"
                                                style="@style/Widget.MaterialComponents.Chip.Choice"
                                                app:checkedIconVisible="true" app:chipIconVisible="true"
                                                app:checkedIcon="@drawable/ic_checked"/>
         <com.google.android.material.chip.Chip android:layout_width="wrap_content"
-                                               android:layout_height="wrap_content" android:text="Rower"
+                android:layout_height="wrap_content"
+                android:text="@string/bike"
                                                app:chipIcon="@drawable/ic_bike_grey"
                                                style="@style/Widget.MaterialComponents.Chip.Choice"
                                                app:checkedIconVisible="true" app:chipIconVisible="true"
                                                app:checkedIcon="@drawable/ic_checked"/>
         <com.google.android.material.chip.Chip android:layout_width="wrap_content"
-                                               android:layout_height="wrap_content" android:text="Pieszo"
+                android:layout_height="wrap_content"
+                android:text="@string/pedestrian"
                                                app:chipIcon="@drawable/ic_pedestrian_grey"
                                                style="@style/Widget.MaterialComponents.Chip.Choice"
                                                app:checkedIconVisible="true" app:chipIconVisible="true"
@@ -65,7 +71,7 @@
 
     </com.google.android.material.chip.ChipGroup>
     <Button
-            android:text="Dodaj"
+            android:text="@string/add"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:id="@+id/submitMarkerButton"

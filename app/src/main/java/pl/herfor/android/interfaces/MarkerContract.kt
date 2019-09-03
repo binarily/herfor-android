@@ -1,15 +1,9 @@
-package pl.herfor.android.contracts
+package pl.herfor.android.interfaces
 
-import android.location.Geocoder
-import androidx.appcompat.app.AppCompatActivity
-import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.android.gms.maps.model.Marker
-import pl.herfor.android.objects.MarkerData
-import pl.herfor.android.objects.MarkerProperties
-import pl.herfor.android.objects.Point
-import pl.herfor.android.objects.RightButtonMode
+import pl.herfor.android.objects.*
 
 interface MarkerContract {
     interface View {
@@ -26,8 +20,13 @@ interface MarkerContract {
         fun dismissAddSheet()
         fun moveCamera(position: LatLng, animate: Boolean)
         fun setRightButton(rightButtonMode: RightButtonMode, transition: Boolean)
+
         fun addMarker(marker: MarkerData): Marker
         fun removeMarker(marker: Marker)
+        fun removeAllMarkers()
+
+        fun setSeverityTypeFilters(severityTypes: List<SeverityType>)
+        fun setAccidentTypeFilters(accidentTypes: List<AccidentType>)
     }
 
     interface Presenter {
@@ -42,13 +41,12 @@ interface MarkerContract {
         fun handleLocationBeingDisabled()
         fun zoomToCurrentLocation()
         fun showCurrentLocation()
-        fun askForLocationPermission()
         fun setRightButtonMode(bounds: LatLngBounds)
-    }
 
-    interface Context {
-        fun getLocationProvider(): FusedLocationProviderClient
-        fun getGeocoder(): Geocoder
-        fun getAppContext(): AppCompatActivity
+        fun askForLocationPermission()
+        fun checkForPlayServices()
+
+        fun toggleSeverityType(severityType: SeverityType)
+        fun toggleAccidentType(accidentType: AccidentType)
     }
 }
