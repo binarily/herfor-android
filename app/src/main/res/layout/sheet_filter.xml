@@ -100,8 +100,8 @@
         <com.google.android.material.chip.Chip
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/metro"
-                app:chipIcon="@drawable/ic_metro_grey"
+                android:text="@string/train"
+                app:chipIcon="@drawable/ic_rail_grey"
                 style="@style/Widget.MaterialComponents.Chip.Choice"
                 app:checkedIconVisible="true"
                 app:chipIconVisible="true"
@@ -110,8 +110,8 @@
         <com.google.android.material.chip.Chip
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/train"
-                app:chipIcon="@drawable/ic_rail_grey"
+                android:text="@string/metro"
+                app:chipIcon="@drawable/ic_metro_grey"
                 style="@style/Widget.MaterialComponents.Chip.Choice"
                 app:checkedIconVisible="true"
                 app:chipIconVisible="true"

@@ -89,6 +89,7 @@ class MapsActivity : AppCompatActivity(), MarkerContract.View, FilterSheetFragme
     }
 
     private fun prepareMarkerForSubmission() {
+        submitMarkerButton.isEnabled = false
         val markerProperties = MarkerProperties(AccidentType.values()[(addChipGroup.checkedChipId - 1) % 6])
         presenter.submitMarker(markerProperties)
     }
@@ -265,7 +266,8 @@ class MapsActivity : AppCompatActivity(), MarkerContract.View, FilterSheetFragme
     }
 
     override fun dismissAddSheet() {
-        submitMarkerButton.isEnabled = true
+        submitMarkerButton.isEnabled = false
+        addChipGroup.clearCheck()
         showSheet(SheetVisibility.NONE)
     }
 

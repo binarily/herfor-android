@@ -50,7 +50,7 @@ class MarkerViewModel : ViewModel() {
 
     //Retrofit
     private val gson = GsonBuilder()
-        .setDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz")
+        .setDateFormat("yyyy-MM-dd HH:mm:ss")
         .create()
     private val retrofit = Retrofit.Builder()
         .baseUrl("http://192.168.0.127:8080/")

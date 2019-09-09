@@ -252,7 +252,7 @@ class MarkerViewPresenter(
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val name = context.getContext().getString(R.string.channel_name)
             val descriptionText = context.getContext().getString(R.string.channel_description)
-            val importance = NotificationManager.IMPORTANCE_DEFAULT
+            val importance = NotificationManager.IMPORTANCE_HIGH
             val channel = NotificationChannel(NOTIFICATION_CHANNEL_ID, name, importance).apply {
                 description = descriptionText
             }
