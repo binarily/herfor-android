@@ -5,6 +5,7 @@ import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import pl.herfor.android.utils.Constants
 import pl.herfor.android.workers.NotificationWorker
 
 class NotificationService : FirebaseMessagingService() {
@@ -14,7 +15,7 @@ class NotificationService : FirebaseMessagingService() {
         val workData = workDataOf(*p0.data.toList().toTypedArray())
         val notificationWorkRequest = OneTimeWorkRequestBuilder<NotificationWorker>()
             .setInputData(workData)
-            .addTag("notifications")
+            .addTag(Constants.NOTIFICATION_WORKER_TAG)
             .build()
         WorkManager.getInstance(this).enqueue(notificationWorkRequest)
     }

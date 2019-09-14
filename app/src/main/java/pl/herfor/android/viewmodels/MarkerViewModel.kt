@@ -33,9 +33,13 @@ class MarkerViewModel : ViewModel() {
     val accidentFilterChanged: MutableLiveData<AccidentType> by lazy {
         MutableLiveData<AccidentType>()
     }
+    val markerFromNotificationStatus: MutableLiveData<String> by lazy {
+        MutableLiveData<String>()
+    }
 
     //All markers
-    val markersHashMap: HashMap<Point, MarkerData> = HashMap()
+    val markersByPoint: HashMap<Point, MarkerData> = HashMap()
+    val markersById: HashMap<String, MarkerData> = HashMap()
     //Map of markers on map
     val mapMarkers = HashMap<String, Marker>()
 
@@ -60,6 +64,10 @@ class MarkerViewModel : ViewModel() {
 
     fun loadAllMarkers() {
         service.listMarkers().enqueue(markersCallback())
+    }
+
+    fun loadSingleMarkerForNotification(id: String) {
+        service.getMarker(id).enqueue(singleMarkerForNotificationCallback())
     }
 
     fun loadAllVisibleMarkers(request: MarkersLookupRequest) {
@@ -88,18 +96,25 @@ class MarkerViewModel : ViewModel() {
                 response?.body()?.forEach { marker ->
                     when (marker.properties.severityType) {
                         SeverityType.NONE -> {
-                            markersHashMap.remove(marker.location)
+                            markersByPoint.remove(marker.location)
+                            markersById.remove(marker.id)
                             removeMarkerFromMap.value = marker
                         }
                         else -> {
-                            if (!markersHashMap.containsKey(marker.location)) {
-                                markersHashMap[marker.location] = marker
+                            if (marker.id != null && !markersById.containsKey(marker.id!!)) {
+                                markersByPoint[marker.location] = marker
+                                markersById[marker.id!!] = marker
                                 if (visibleSeverities.contains(marker.properties.severityType) && visibleAccidentTypes.contains(
                                         marker.properties.accidentType
                                     )
                                 ) {
                                     addMarkerToMap.value = marker
                                 }
+                            } else {
+                                removeMarkerFromMap.value = marker
+                                val modifiedMarker = markersById[marker.id]
+                                modifiedMarker?.properties = marker.properties
+                                addMarkerToMap.value = marker
                             }
                         }
                     }
@@ -116,10 +131,54 @@ class MarkerViewModel : ViewModel() {
 
             override fun onResponse(call: Call<MarkerData>, response: Response<MarkerData>) {
                 val marker = response.body()
-                if (marker != null) {
+                if (marker?.id != null) {
                     submittingMarkerStatus.value = true
-                    markersHashMap[marker.location] = marker
+                    markersByPoint[marker.location] = marker
+                    markersById[marker.id!!] = marker
                     addMarkerToMap.value = marker
+                }
+            }
+
+        }
+    }
+
+    private fun singleMarkerForNotificationCallback(): Callback<MarkerData> {
+        return object : Callback<MarkerData> {
+            override fun onFailure(call: Call<MarkerData>, t: Throwable) {
+                connectionStatus.value = false
+                markerFromNotificationStatus.value = null
+            }
+
+            override fun onResponse(call: Call<MarkerData>, response: Response<MarkerData>) {
+                val marker = response.body()
+                when (marker?.properties?.severityType) {
+                    SeverityType.NONE -> {
+                        markersByPoint.remove(marker.location)
+                        markersById.remove(marker.id)
+                        removeMarkerFromMap.value = marker
+                        markerFromNotificationStatus.value = null
+                    }
+                    null -> {
+                        markerFromNotificationStatus.value = null
+                    }
+                    else -> {
+                        if (!markersById.containsKey(marker.id)) {
+                            markersByPoint[marker.location] = marker
+                            markersById[marker.id!!] = marker
+                            if (visibleSeverities.contains(marker.properties.severityType) && visibleAccidentTypes.contains(
+                                    marker.properties.accidentType
+                                )
+                            ) {
+                                addMarkerToMap.value = marker
+                            }
+                        } else {
+                            removeMarkerFromMap.value = marker
+                            val modifiedMarker = markersById[marker.id]
+                            modifiedMarker?.properties = marker.properties
+                            addMarkerToMap.value = marker
+                        }
+                        markerFromNotificationStatus.value = marker.id
+                    }
                 }
             }
 

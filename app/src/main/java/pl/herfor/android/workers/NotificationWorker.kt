@@ -4,7 +4,6 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.graphics.BitmapFactory
-import android.location.Location
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.work.CoroutineWorker
@@ -16,6 +15,7 @@ import pl.herfor.android.activities.MapsActivity
 import pl.herfor.android.contexts.MarkerContext
 import pl.herfor.android.objects.MarkerData
 import pl.herfor.android.utils.Constants
+import pl.herfor.android.utils.toLocation
 import kotlin.math.roundToLong
 import kotlin.random.Random
 
@@ -28,19 +28,28 @@ class NotificationWorker(context: Context, workerParams: WorkerParameters) :
         val intent = Intent(applicationContext, MapsActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
-        intent.putExtra("id", inputData.getString("id"))
+        intent.putExtra(
+            Constants.INTENT_MARKER_ID_KEY,
+            inputData.getString(Constants.NOTIFICATION_MESSAGE_ID_KEY)
+        )
         val pendingIntent: PendingIntent =
-            PendingIntent.getActivity(applicationContext, 0, intent, 0)
+            PendingIntent.getActivity(
+                applicationContext,
+                0,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT
+            )
 
         val gson = GsonBuilder()
             .setDateFormat("yyyy-MM-dd HH:mm:ss")
             .create()
-        val marker = gson.fromJson(inputData.getString("marker"), MarkerData().javaClass)
+        val marker = gson.fromJson(
+            inputData.getString(Constants.NOTIFICATION_MESSAGE_MARKER_KEY),
+            MarkerData().javaClass
+        )
 
-        val markerLocation = Location("")
-        markerLocation.latitude = marker.location.latitude
-        markerLocation.longitude = marker.location.longitude
-        var distance = 0L
+        val markerLocation = marker.location.toLocation()
+        var distance = -1L
         markerContext.getCurrentLocation().addOnSuccessListener {
             distance =
                 markerLocation.distanceTo(it).roundToLong()

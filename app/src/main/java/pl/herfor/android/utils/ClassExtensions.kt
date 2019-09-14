@@ -19,3 +19,10 @@ internal fun Location.toPoint(): Point {
 internal fun Point?.toLatLng(): LatLng {
     return LatLng(this?.latitude ?: 0.0, this?.longitude ?: 0.0)
 }
+
+internal fun Point?.toLocation(): Location {
+    val location = Location("")
+    location.latitude = this?.latitude ?: 0.0
+    location.longitude = this?.longitude ?: 0.0
+    return location
+}

@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Location
 import android.os.Build
+import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Observer
 import com.google.android.gms.common.ConnectionResult
@@ -74,12 +75,12 @@ class MarkerViewPresenter(
                 when (model.visibleSeverities.contains(severityType)) {
                     true -> {
                         model.visibleSeverities.remove(severityType)
-                        model.markersHashMap.filter { marker -> marker.value.properties.severityType == severityType }
+                        model.markersByPoint.filter { marker -> marker.value.properties.severityType == severityType }
                             .forEach { marker -> model.removeMarkerFromMap.value = marker.value }
                     }
                     false -> {
                         model.visibleSeverities.add(severityType)
-                        model.markersHashMap.filter { marker -> marker.value.properties.severityType == severityType }
+                        model.markersByPoint.filter { marker -> marker.value.properties.severityType == severityType }
                             .forEach { marker -> model.addMarkerToMap.value = marker.value }
                     }
                 }
@@ -91,16 +92,36 @@ class MarkerViewPresenter(
                 when (model.visibleAccidentTypes.contains(accidentType)) {
                     true -> {
                         model.visibleAccidentTypes.remove(accidentType)
-                        model.markersHashMap.filter { marker -> marker.value.properties.accidentType == accidentType }
+                        model.markersByPoint.filter { marker -> marker.value.properties.accidentType == accidentType }
                             .forEach { marker -> model.removeMarkerFromMap.value = marker.value }
                     }
                     false -> {
                         model.visibleAccidentTypes.add(accidentType)
-                        model.markersHashMap.filter { marker -> marker.value.properties.accidentType == accidentType }
+                        model.markersByPoint.filter { marker -> marker.value.properties.accidentType == accidentType }
                             .forEach { marker -> model.addMarkerToMap.value = marker.value }
                     }
                 }
             })
+
+        model.markerFromNotificationStatus.observe(
+            context.getLifecycleOwner(),
+            Observer<String> { status ->
+                when (status) {
+                    null -> {
+                        Toast.makeText(
+                            context.getContext(),
+                            context.getContext().getString(R.string.marker_notification_unavailable),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                    else -> {
+                        if (model.mapMarkers[status] != null) {
+                            displayMarkerDetails(model.mapMarkers[status]!!)
+                        }
+                    }
+                }
+            }
+        )
 
         view.setSeverityTypeFilters(model.visibleSeverities)
         view.setAccidentTypeFilters(model.visibleAccidentTypes)
@@ -234,6 +255,10 @@ class MarkerViewPresenter(
 
     override fun toggleAccidentType(accidentType: AccidentType) {
         model.accidentFilterChanged.value = accidentType
+    }
+
+    override fun displayMarkerFromNotifications(id: String) {
+        model.loadSingleMarkerForNotification(id)
     }
 
     private fun permissionCheck(): Boolean {

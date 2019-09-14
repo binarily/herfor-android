@@ -37,6 +37,7 @@ import pl.herfor.android.contexts.MarkerContext
 import pl.herfor.android.interfaces.MarkerContract
 import pl.herfor.android.objects.*
 import pl.herfor.android.presenters.MarkerViewPresenter
+import pl.herfor.android.utils.Constants
 import pl.herfor.android.utils.Constants.Companion.BUTTON_ANIMATION_DURATION
 import pl.herfor.android.utils.Constants.Companion.CHIP_ID_KEY
 import pl.herfor.android.utils.Constants.Companion.RIGHT_BUTTON_STATE_KEY
@@ -54,6 +55,8 @@ class MapsActivity : AppCompatActivity(), MarkerContract.View, FilterSheetFragme
     private lateinit var snackbar: Snackbar
     private lateinit var presenter: MarkerContract.Presenter
     private lateinit var filterSheet: FilterSheetFragment
+
+    private var notificationMarkerReady: Boolean = false
 
     private var buttonState = RightButtonMode.DISABLED
 
@@ -83,13 +86,14 @@ class MapsActivity : AppCompatActivity(), MarkerContract.View, FilterSheetFragme
 
         filterSheet = FilterSheetFragment()
 
+        if (intent.extras != null && intent.extras.containsKey(Constants.INTENT_MARKER_ID_KEY)) {
+            notificationMarkerReady = true
+        }
+
         val mapFragment = supportFragmentManager
             .findFragmentById(R.id.map) as SupportMapFragment
         mapFragment.getMapAsync { map -> onMapReady(map) }
 
-        if (intent.extras != null && intent.extras.containsKey("id")) {
-            TODO("Presenter to show a single marker")
-        }
     }
 
     private fun prepareMarkerForSubmission() {
@@ -118,6 +122,12 @@ class MapsActivity : AppCompatActivity(), MarkerContract.View, FilterSheetFragme
         presenter.start()
         presenter.askForLocationPermission()
         presenter.checkForPlayServices()
+
+        if (notificationMarkerReady) {
+            presenter.displayMarkerFromNotifications(intent.extras.getString(Constants.INTENT_MARKER_ID_KEY))
+            intent.extras.remove(Constants.INTENT_MARKER_ID_KEY)
+            notificationMarkerReady = false
+        }
     }
 
     private fun showSheet(sheetVisibility: SheetVisibility) {
