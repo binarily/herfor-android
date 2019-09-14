@@ -86,6 +86,10 @@ class MapsActivity : AppCompatActivity(), MarkerContract.View, FilterSheetFragme
         val mapFragment = supportFragmentManager
             .findFragmentById(R.id.map) as SupportMapFragment
         mapFragment.getMapAsync { map -> onMapReady(map) }
+
+        if (intent.extras != null && intent.extras.containsKey("id")) {
+            TODO("Presenter to show a single marker")
+        }
     }
 
     private fun prepareMarkerForSubmission() {
@@ -184,8 +188,9 @@ class MapsActivity : AppCompatActivity(), MarkerContract.View, FilterSheetFragme
     //TODO: replace with data binding
     override fun showDetailsSheet(markerData: MarkerData) {
         runOnUiThread {
-            detailsTypeChip.text = markerData.properties.accidentType.toHumanReadableString()
-            detailsSeverityChip.text = markerData.properties.severityType.toHumanReadableString()
+            detailsTypeChip.text = markerData.properties.accidentType.toHumanReadableString(this)
+            detailsSeverityChip.text =
+                markerData.properties.severityType.toHumanReadableString(this)
             detailsSeverityChip.chipBackgroundColor = markerData.properties.severityType.toColor(this)
             detailsTimeTextView.text = getString(R.string.time_details_description).format(
                 DateUtils.getRelativeTimeSpanString(

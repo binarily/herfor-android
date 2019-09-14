@@ -24,4 +24,6 @@
     <string name="add">Add</string>
     <string name="placeholder" translatable="false">...</string>
     <string name="title_activity_maps" translatable="false">Obs</string>
+    <string name="none_severity">Elapsed</string>
+    <string name="distance_string">%d m away from you</string>
 </resources>

@@ -6,7 +6,6 @@ import android.content.Context
 import android.location.Address
 import android.location.Geocoder
 import android.location.Location
-import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.LifecycleOwner
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.tasks.Task
@@ -14,7 +13,7 @@ import pl.herfor.android.R
 import pl.herfor.android.interfaces.ContextRepository
 import java.io.IOException
 
-class MarkerContext(private val context: AppCompatActivity) : ContextRepository {
+class MarkerContext(private val context: Context) : ContextRepository {
     private val geocoder = Geocoder(context)
     private val locationProviderClient = LocationServices.getFusedLocationProviderClient(context)
 
@@ -36,7 +35,7 @@ class MarkerContext(private val context: AppCompatActivity) : ContextRepository 
     }
 
     override fun getLifecycleOwner(): LifecycleOwner {
-        return context
+        return context as LifecycleOwner
     }
 
     override fun getContext(): Context {
@@ -44,7 +43,7 @@ class MarkerContext(private val context: AppCompatActivity) : ContextRepository 
     }
 
     override fun getActivity(): Activity {
-        return context
+        return context as Activity
     }
 
 }

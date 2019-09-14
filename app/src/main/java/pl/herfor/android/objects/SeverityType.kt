@@ -8,12 +8,12 @@ import pl.herfor.android.R
 enum class SeverityType {
     GREEN, YELLOW, RED, NONE;
 
-    fun toHumanReadableString(): String {
+    fun toHumanReadableString(context: Context): String {
         return when (this) {
-            GREEN -> "Zielony"
-            YELLOW -> "Żółty"
-            RED -> "Czerwony"
-            NONE -> "Nieważny"
+            GREEN -> context.getString(R.string.green)
+            YELLOW -> context.getString(R.string.yellow)
+            RED -> context.getString(R.string.red)
+            NONE -> context.getString(R.string.none_severity)
         }
     }
 
