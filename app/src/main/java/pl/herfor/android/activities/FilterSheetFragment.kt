@@ -18,15 +18,11 @@ interface FilterSheetFragmentInterface {
     fun toggleAccidentType(accidentType: AccidentType)
 }
 
-class FilterSheetFragment() : BottomSheetDialogFragment() {
+class FilterSheetFragment : BottomSheetDialogFragment() {
 
     private lateinit var activity: FilterSheetFragmentInterface
     private lateinit var severityTypes: List<SeverityType>
     private lateinit var accidentTypes: List<AccidentType>
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-    }
 
     override fun onCreateView(
         inflater: LayoutInflater,

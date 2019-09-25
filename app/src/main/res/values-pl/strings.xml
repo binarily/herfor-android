@@ -26,4 +26,6 @@
     <string name="none_severity">Zakończony</string>
     <string name="distance_string">%d m od ciebie</string>
     <string name="marker_notification_unavailable">Zgłoszenie jest niedostępne lub się zakończyło.</string>
+    <string name="add_sheet_title">Dodaj zgłoszenie</string>
+    <string name="details_sheet_clock_content_description">Czas zgłoszenia</string>
 </resources>

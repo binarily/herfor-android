@@ -27,4 +27,6 @@
     <string name="none_severity">Elapsed</string>
     <string name="distance_string">%d m away from you</string>
     <string name="marker_notification_unavailable">The report is not available or it elapsed.</string>
+    <string name="add_sheet_title">Add report</string>
+    <string name="details_sheet_clock_content_description">Report time</string>
 </resources>

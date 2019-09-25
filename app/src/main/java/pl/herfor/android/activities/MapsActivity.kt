@@ -206,7 +206,7 @@ class MapsActivity : AppCompatActivity(), MarkerContract.View, FilterSheetFragme
                 DateUtils.getRelativeTimeSpanString(
                 markerData.properties.creationDate.time,
                 System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE
-                ).toString().toLowerCase()
+                ).toString()
             )
 
             //This will be filled in showLocationOnDetailsSheet()

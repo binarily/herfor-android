@@ -11,19 +11,21 @@ data class MarkerProperties(
 
     fun getGlyph(): Int {
         return getResId(
-            "ic_${accidentType.toString().toLowerCase()}_${severityType.toString().toLowerCase()}",
+            "ic_${accidentType.toString().toLowerCase(Locale.ROOT)}_${severityType.toString().toLowerCase(
+                Locale.ROOT
+            )}",
             pl.herfor.android.R.drawable::class.java
         )
 
     }
 
     private fun getResId(resName: String, c: Class<*>): Int {
-        try {
+        return try {
             val idField = c.getDeclaredField(resName)
-            return idField.getInt(idField)
+            idField.getInt(idField)
         } catch (e: Exception) {
             e.printStackTrace()
-            return -1
+            -1
         }
 
     }

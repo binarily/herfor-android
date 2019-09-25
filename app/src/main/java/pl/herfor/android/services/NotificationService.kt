@@ -20,7 +20,4 @@ class NotificationService : FirebaseMessagingService() {
         WorkManager.getInstance(this).enqueue(notificationWorkRequest)
     }
 
-    override fun onDeletedMessages() {
-        super.onDeletedMessages()
-    }
 }
