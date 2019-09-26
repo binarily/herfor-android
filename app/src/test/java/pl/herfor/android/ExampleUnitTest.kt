@@ -1,8 +1,7 @@
 package pl.herfor.android
 
+import org.junit.Assert.assertEquals
 import org.junit.Test
-
-import org.junit.Assert.*
 
 /**
  * Example local unit test, which will execute on the development machine (host).
@@ -16,7 +15,7 @@ class ExampleUnitTest {
     }
 
     //Possible unit tests
-    //Things loaded end up in database
+    //Things loaded end up in database - NO, that is an integration test
     //Things reloaded are updated
     //
 }

@@ -32,6 +32,10 @@ class MarkerViewPresenter(
 ) : MarkerContract.Presenter {
 
     override fun start() {
+        if (model.started) {
+            return
+        }
+
         model.addMarkerToMap.observe(context.getLifecycleOwner(), Observer<MarkerData> { marker ->
             if (marker.id != null) {
                 val mapsMarker = view.addMarker(marker)
@@ -42,21 +46,21 @@ class MarkerViewPresenter(
         model.removeMarkerFromMap.observe(
             context.getLifecycleOwner(),
             Observer<MarkerData> { marker ->
-            model.mapMarkers[marker.id]?.remove()
+                model.mapMarkers[marker.id]?.remove()
                 model.mapMarkers.remove(marker.id)
-        })
+            })
         model.submittingMarkerStatus.observe(
             context.getLifecycleOwner(),
             Observer<Boolean> { status ->
-            when (status) {
-                true -> {
-                    view.dismissAddSheet()
+                when (status) {
+                    true -> {
+                        view.dismissAddSheet()
+                    }
+                    false -> {
+                        view.showSubmitMarkerFailure()
+                    }
                 }
-                false -> {
-                    view.showSubmitMarkerFailure()
-                }
-            }
-        })
+            })
         model.connectionStatus.observe(context.getLifecycleOwner(), Observer<Boolean> { status ->
             when (status) {
                 true -> {
@@ -128,6 +132,8 @@ class MarkerViewPresenter(
 
         createNotificationChannel()
         FirebaseMessaging.getInstance().subscribeToTopic("marker")
+
+        model.started = true
     }
 
     override fun stop() {
@@ -137,6 +143,8 @@ class MarkerViewPresenter(
         model.connectionStatus.removeObservers(context.getLifecycleOwner())
         model.accidentFilterChanged.removeObservers(context.getLifecycleOwner())
         model.severityFilterChanged.removeObservers(context.getLifecycleOwner())
+
+        model.started = false
     }
 
     override fun displayMarkerDetails(marker: Marker) {
@@ -155,7 +163,7 @@ class MarkerViewPresenter(
 
     @SuppressLint("MissingPermission")
     override fun submitMarker(markerProperties: MarkerProperties) {
-        if (permissionCheck()) {
+        if (locationPermissionAvailable()) {
             context.getCurrentLocation().addOnSuccessListener { location: Location? ->
                 if (location != null) {
                     val marker = MarkerData(location.toPoint(), markerProperties)
@@ -167,49 +175,32 @@ class MarkerViewPresenter(
                 .addOnFailureListener {
                     view.showSubmitMarkerFailure()
                 }
+        } else {
+            askForLocationPermission()
         }
     }
 
     override fun loadVisibleMarkers(northEast: Point, southWest: Point) {
-        val request = MarkersLookupRequest(northEast, southWest, null)
+        val request = MarkersLookupRequest(northEast, southWest)
         model.loadAllVisibleMarkers(request)
     }
 
     override fun handleLocationBeingEnabled() {
-        if (!model.locationEnabled) {
-            model.locationEnabled = true
-            view.setLocationStateForMap(true)
-            view.setRightButton(RightButtonMode.ADD_MARKER, false)
-            showCurrentLocation()
-        }
+        handleLocationPermissionChange(true)
     }
 
     override fun handleLocationBeingDisabled() {
-        model.locationEnabled = false
-        view.setLocationStateForMap(false)
-        view.setRightButton(RightButtonMode.DISABLED, false)
+        handleLocationPermissionChange(false)
     }
 
     @SuppressLint("MissingPermission")
     override fun zoomToCurrentLocation() {
-        if (permissionCheck()) {
-            context.getCurrentLocation().addOnSuccessListener { location: Location? ->
-                if (location != null) {
-                    view.moveCamera(location.toLatLng(), true)
-                }
-            }
-        }
+        showCurrentLocation(animate = true)
     }
 
     @SuppressLint("MissingPermission")
     override fun showCurrentLocation() {
-        if (permissionCheck()) {
-            context.getCurrentLocation().addOnSuccessListener { location: Location? ->
-                if (location != null) {
-                    view.moveCamera(location.toLatLng(), false)
-                }
-            }
-        }
+        showCurrentLocation(animate = false)
     }
 
     override fun displayMarkerAdd() {
@@ -223,16 +214,20 @@ class MarkerViewPresenter(
 
     @SuppressLint("MissingPermission")
     override fun setRightButtonMode(bounds: LatLngBounds) {
-        if (permissionCheck()) {
+        if (locationPermissionAvailable()) {
             context.getCurrentLocation().addOnSuccessListener { location: Location? ->
                 if (location != null) {
-                    val transition = bounds.contains(location.toLatLng()) xor model.insideLocationArea
+                    val transition =
+                        bounds.contains(location.toLatLng()) xor model.insideLocationArea
                     if (transition) {
                         model.insideLocationArea = !model.insideLocationArea
                     }
                     val buttonMode =
                         if (model.insideLocationArea) RightButtonMode.ADD_MARKER else RightButtonMode.SHOW_LOCATION
                     view.setRightButton(buttonMode, transition)
+                } else {
+                    //TODO("No location available message")
+                    view.setRightButton(RightButtonMode.DISABLED, false)
                 }
             }
         } else {
@@ -261,7 +256,7 @@ class MarkerViewPresenter(
         model.loadSingleMarkerForNotification(id)
     }
 
-    private fun permissionCheck(): Boolean {
+    private fun locationPermissionAvailable(): Boolean {
         if (ContextCompat.checkSelfPermission(
                 context.getContext(),
                 Manifest.permission.ACCESS_FINE_LOCATION
@@ -287,4 +282,29 @@ class MarkerViewPresenter(
             notificationManager.createNotificationChannel(channel)
         }
     }
+
+    private fun showCurrentLocation(animate: Boolean) {
+        if (locationPermissionAvailable()) {
+            context.getCurrentLocation().addOnSuccessListener { location: Location? ->
+                if (location != null) {
+                    view.moveCamera(location.toLatLng(), animate)
+                } else {
+                    TODO("Show error here because no location available right now.")
+                }
+            }
+        } else {
+            askForLocationPermission()
+        }
+    }
+
+    private fun handleLocationPermissionChange(result: Boolean) {
+        val buttonMode = if (result) RightButtonMode.ADD_MARKER else RightButtonMode.DISABLED
+        model.locationEnabled = result
+        view.setLocationStateForMap(result)
+        view.setRightButton(buttonMode, false)
+        if (result) {
+            showCurrentLocation()
+        }
+    }
+
 }

@@ -13,9 +13,9 @@ import pl.herfor.android.R
 import pl.herfor.android.interfaces.ContextRepository
 import java.io.IOException
 
-class MarkerContext(private val context: Context) : ContextRepository {
-    private val geocoder = Geocoder(context)
-    private val locationProviderClient = LocationServices.getFusedLocationProviderClient(context)
+class MarkerContext(private var context: Context) : ContextRepository {
+    private var geocoder = Geocoder(context)
+    private var locationProviderClient = LocationServices.getFusedLocationProviderClient(context)
 
     @SuppressLint("MissingPermission")
     override fun getCurrentLocation(): Task<Location> {

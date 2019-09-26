@@ -46,6 +46,7 @@ class MarkerViewModel : ViewModel() {
     //Settings
     var locationEnabled = false
     var insideLocationArea = true
+    var started = false
     var visibleSeverities = arrayListOf(SeverityType.GREEN, SeverityType.YELLOW, SeverityType.RED)
     var visibleAccidentTypes = arrayListOf(
         AccidentType.BIKE, AccidentType.BUS, AccidentType.METRO,
