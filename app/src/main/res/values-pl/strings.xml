@@ -28,4 +28,5 @@
     <string name="marker_notification_unavailable">Zgłoszenie jest niedostępne lub się zakończyło.</string>
     <string name="add_sheet_title">Dodaj zgłoszenie</string>
     <string name="details_sheet_clock_content_description">Czas zgłoszenia</string>
+    <string name="location_unavailable_error">Twoja lokalizacja jest obecnie niedostępna.</string>
 </resources>

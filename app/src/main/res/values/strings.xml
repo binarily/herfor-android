@@ -29,4 +29,5 @@
     <string name="marker_notification_unavailable">The report is not available or it elapsed.</string>
     <string name="add_sheet_title">Add report</string>
     <string name="details_sheet_clock_content_description">Report time</string>
+    <string name="location_unavailable_error">Your location is currently unavailable.</string>
 </resources>

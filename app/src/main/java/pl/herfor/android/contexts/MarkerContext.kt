@@ -3,9 +3,11 @@ package pl.herfor.android.contexts
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
+import android.content.SharedPreferences
 import android.location.Address
 import android.location.Geocoder
 import android.location.Location
+import android.widget.Toast
 import androidx.lifecycle.LifecycleOwner
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.tasks.Task
@@ -46,4 +48,11 @@ class MarkerContext(private var context: Context) : ContextRepository {
         return context as Activity
     }
 
+    override fun showToast(resourceId: Int, duration: Int) {
+        Toast.makeText(context, resourceId, duration).show()
+    }
+
+    override fun getSharedPreferences(name: String, mode: Int): SharedPreferences {
+        return context.getSharedPreferences(name, mode)
+    }
 }

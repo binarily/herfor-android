@@ -36,96 +36,25 @@ class MarkerViewPresenter(
             return
         }
 
-        model.addMarkerToMap.observe(context.getLifecycleOwner(), Observer<MarkerData> { marker ->
-            if (marker.id != null) {
-                val mapsMarker = view.addMarker(marker)
-                mapsMarker.tag = marker
-                model.mapMarkers[marker.id!!] = mapsMarker
-            }
-        })
-        model.removeMarkerFromMap.observe(
-            context.getLifecycleOwner(),
-            Observer<MarkerData> { marker ->
-                model.mapMarkers[marker.id]?.remove()
-                model.mapMarkers.remove(marker.id)
-            })
-        model.submittingMarkerStatus.observe(
-            context.getLifecycleOwner(),
-            Observer<Boolean> { status ->
-                when (status) {
-                    true -> {
-                        view.dismissAddSheet()
-                    }
-                    false -> {
-                        view.showSubmitMarkerFailure()
-                    }
-                }
-            })
-        model.connectionStatus.observe(context.getLifecycleOwner(), Observer<Boolean> { status ->
-            when (status) {
-                true -> {
-                    view.dismissConnectionError()
-                }
-                false -> {
-                    view.showConnectionError()
-                    model.connectionStatus.value = null
-                }
-            }
-        })
-
-        model.severityFilterChanged.observe(
-            context.getLifecycleOwner(),
-            Observer<SeverityType> { severityType ->
-                when (model.visibleSeverities.contains(severityType)) {
-                    true -> {
-                        model.visibleSeverities.remove(severityType)
-                        model.markersByPoint.filter { marker -> marker.value.properties.severityType == severityType }
-                            .forEach { marker -> model.removeMarkerFromMap.value = marker.value }
-                    }
-                    false -> {
-                        model.visibleSeverities.add(severityType)
-                        model.markersByPoint.filter { marker -> marker.value.properties.severityType == severityType }
-                            .forEach { marker -> model.addMarkerToMap.value = marker.value }
-                    }
-                }
-            })
-
-        model.accidentFilterChanged.observe(
-            context.getLifecycleOwner(),
-            Observer<AccidentType> { accidentType ->
-                when (model.visibleAccidentTypes.contains(accidentType)) {
-                    true -> {
-                        model.visibleAccidentTypes.remove(accidentType)
-                        model.markersByPoint.filter { marker -> marker.value.properties.accidentType == accidentType }
-                            .forEach { marker -> model.removeMarkerFromMap.value = marker.value }
-                    }
-                    false -> {
-                        model.visibleAccidentTypes.add(accidentType)
-                        model.markersByPoint.filter { marker -> marker.value.properties.accidentType == accidentType }
-                            .forEach { marker -> model.addMarkerToMap.value = marker.value }
-                    }
-                }
-            })
-
+        model.addMarkerToMap.observe(context.getLifecycleOwner(),
+            Observer { marker -> addMarkerToMapObserver(marker) })
+        model.removeMarkerFromMap.observe(context.getLifecycleOwner(),
+            Observer { marker -> removeMarkerFromMapObserver(marker) })
+        model.submittingMarkerStatus.observe(context.getLifecycleOwner(),
+            Observer { status -> submittingMarkerObserver(status) })
+        model.connectionStatus.observe(context.getLifecycleOwner(),
+            Observer { status -> connectionStatusObserver(status) })
+        model.severityFilterChanged.observe(context.getLifecycleOwner(),
+            Observer { severityType -> severityFilterObserver(severityType) })
+        model.accidentFilterChanged.observe(context.getLifecycleOwner(),
+            Observer { accidentType -> accidentFilterObserver(accidentType) })
         model.markerFromNotificationStatus.observe(
             context.getLifecycleOwner(),
-            Observer<String> { status ->
-                when (status) {
-                    null -> {
-                        Toast.makeText(
-                            context.getContext(),
-                            context.getContext().getString(R.string.marker_notification_unavailable),
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                    else -> {
-                        if (model.mapMarkers[status] != null) {
-                            displayMarkerDetails(model.mapMarkers[status]!!)
-                        }
-                    }
-                }
-            }
+            Observer { status -> markerFromNotificationObserver(status) }
         )
+
+        initializeSeverityTypes()
+        initializeAccidentTypes()
 
         view.setSeverityTypeFilters(model.visibleSeverities)
         view.setAccidentTypeFilters(model.visibleAccidentTypes)
@@ -226,7 +155,7 @@ class MarkerViewPresenter(
                         if (model.insideLocationArea) RightButtonMode.ADD_MARKER else RightButtonMode.SHOW_LOCATION
                     view.setRightButton(buttonMode, transition)
                 } else {
-                    //TODO("No location available message")
+                    context.showToast(R.string.location_unavailable_error, Toast.LENGTH_SHORT)
                     view.setRightButton(RightButtonMode.DISABLED, false)
                 }
             }
@@ -257,15 +186,10 @@ class MarkerViewPresenter(
     }
 
     private fun locationPermissionAvailable(): Boolean {
-        if (ContextCompat.checkSelfPermission(
-                context.getContext(),
-                Manifest.permission.ACCESS_FINE_LOCATION
-            )
-            != PackageManager.PERMISSION_GRANTED
-        ) {
-            return false
-        }
-        return true
+        return ContextCompat.checkSelfPermission(
+            context.getContext(),
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
     }
 
     private fun createNotificationChannel() {
@@ -280,6 +204,8 @@ class MarkerViewPresenter(
             val notificationManager: NotificationManager =
                 context.getContext().getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)
+        } else {
+            //TODO: log.d - do nothing
         }
     }
 
@@ -289,7 +215,7 @@ class MarkerViewPresenter(
                 if (location != null) {
                     view.moveCamera(location.toLatLng(), animate)
                 } else {
-                    TODO("Show error here because no location available right now.")
+                    context.showToast(R.string.location_unavailable_error, Toast.LENGTH_SHORT)
                 }
             }
         } else {
@@ -297,13 +223,147 @@ class MarkerViewPresenter(
         }
     }
 
-    private fun handleLocationPermissionChange(result: Boolean) {
-        val buttonMode = if (result) RightButtonMode.ADD_MARKER else RightButtonMode.DISABLED
-        model.locationEnabled = result
-        view.setLocationStateForMap(result)
+    private fun handleLocationPermissionChange(permissionEnabled: Boolean) {
+        val buttonMode =
+            if (permissionEnabled) RightButtonMode.ADD_MARKER else RightButtonMode.DISABLED
+        model.locationEnabled = permissionEnabled
+        view.setLocationStateForMap(permissionEnabled)
         view.setRightButton(buttonMode, false)
-        if (result) {
+        if (permissionEnabled) {
             showCurrentLocation()
+        }
+    }
+
+    private fun initializeSeverityTypes() {
+        val sharedPreferences = context.getSharedPreferences("preferences", Context.MODE_PRIVATE)
+        val severities = arrayOf(
+            if (sharedPreferences.getBoolean(
+                    "severityType.GREEN",
+                    false
+                )
+            ) SeverityType.GREEN else null,
+            if (sharedPreferences.getBoolean(
+                    "severityType.YELLOW",
+                    true
+                )
+            ) SeverityType.YELLOW else null,
+            if (sharedPreferences.getBoolean("severityType.RED", true)) SeverityType.RED else null
+        )
+
+        model.visibleSeverities.clear()
+        model.visibleSeverities.addAll(severities.filterNotNull())
+    }
+
+    private fun initializeAccidentTypes() {
+        val sharedPreferences = context.getSharedPreferences("preferences", Context.MODE_PRIVATE)
+        val accidentTypes = mutableListOf<AccidentType?>()
+
+        for (accidentType in AccidentType.values()) {
+            accidentTypes.add(
+                if (sharedPreferences.getBoolean(
+                        "accidentType.${accidentType.name}",
+                        true
+                    )
+                ) accidentType else null
+            )
+        }
+
+        model.visibleAccidentTypes.clear()
+        model.visibleAccidentTypes.addAll(accidentTypes.filterNotNull())
+    }
+
+    //OBSERVERS
+
+    private fun markerFromNotificationObserver(status: String?) {
+        when (status) {
+            null -> {
+                context.showToast(R.string.marker_notification_unavailable, Toast.LENGTH_SHORT)
+            }
+            else -> {
+                if (model.mapMarkers[status] != null) {
+                    displayMarkerDetails(model.mapMarkers[status]!!)
+                }
+            }
+        }
+    }
+
+    private fun addMarkerToMapObserver(marker: MarkerData) {
+        if (marker.id != null) {
+            val mapsMarker = view.addMarker(marker)
+            mapsMarker.tag = marker
+            model.mapMarkers[marker.id!!] = mapsMarker
+        } else {
+            //TODO: log.e
+        }
+    }
+
+    private fun removeMarkerFromMapObserver(marker: MarkerData) {
+        model.mapMarkers[marker.id]?.remove()
+        model.mapMarkers.remove(marker.id)
+    }
+
+    private fun submittingMarkerObserver(status: Boolean) {
+        when (status) {
+            true -> {
+                view.dismissAddSheet()
+            }
+            false -> {
+                view.showSubmitMarkerFailure()
+            }
+        }
+    }
+
+    private fun connectionStatusObserver(status: Boolean) {
+        when (status) {
+            true -> {
+                view.dismissConnectionError()
+            }
+            false -> {
+                view.showConnectionError()
+                model.connectionStatus.value = null
+            }
+        }
+    }
+
+    private fun severityFilterObserver(severityType: SeverityType) {
+        val sharedPreferences = context.getSharedPreferences("preferences", Context.MODE_PRIVATE)
+
+        when (model.visibleSeverities.contains(severityType)) {
+            true -> {
+                sharedPreferences.edit().putBoolean("severityType.${severityType.name}", true)
+                    .apply()
+                model.visibleSeverities.remove(severityType)
+                model.markersByPoint.filter { marker -> marker.value.properties.severityType == severityType }
+                    .forEach { marker -> model.removeMarkerFromMap.value = marker.value }
+            }
+            false -> {
+                sharedPreferences.edit().putBoolean("severityType.${severityType.name}", false)
+                    .apply()
+                model.visibleSeverities.add(severityType)
+                model.markersByPoint.filter { marker -> marker.value.properties.severityType == severityType }
+                    .forEach { marker -> model.addMarkerToMap.value = marker.value }
+            }
+        }
+    }
+
+    private fun accidentFilterObserver(accidentType: AccidentType) {
+        val sharedPreferences = context.getSharedPreferences("preferences", Context.MODE_PRIVATE)
+
+        when (model.visibleAccidentTypes.contains(accidentType)) {
+            true -> {
+                sharedPreferences.edit().putBoolean("accidentType.${accidentType.name}", true)
+                    .apply()
+                model.visibleAccidentTypes.remove(accidentType)
+                model.markersByPoint.filter { marker -> marker.value.properties.accidentType == accidentType }
+                    .forEach { marker -> model.removeMarkerFromMap.value = marker.value }
+            }
+            false -> {
+                sharedPreferences.edit().putBoolean("accidentType.${accidentType.name}", false)
+                    .apply()
+                model.visibleAccidentTypes.add(accidentType)
+                model.markersByPoint.filter { marker -> marker.value.properties.accidentType == accidentType }
+                    .forEach { marker -> model.addMarkerToMap.value = marker.value }
+            }
         }
     }
 

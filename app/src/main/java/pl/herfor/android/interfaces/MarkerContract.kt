@@ -36,7 +36,7 @@ interface MarkerContract {
         fun displayMarkerDetails(marker: Marker)
         fun displayMarkerAdd()
         fun submitMarker(markerProperties: MarkerProperties)
-        fun loadVisibleMarkers(northWest: Point, southEast: Point)
+        fun loadVisibleMarkers(northEast: Point, southWest: Point)
         fun handleLocationBeingEnabled()
         fun handleLocationBeingDisabled()
         fun zoomToCurrentLocation()

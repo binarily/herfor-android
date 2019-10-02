@@ -55,6 +55,11 @@ class NotificationWorker(context: Context, workerParams: WorkerParameters) :
                 markerLocation.distanceTo(it).roundToLong()
         }
 
+        //TODO: make this dependent on current activity
+        if (distance == -1L || distance > 100) {
+            Result.success()
+        }
+
         val location =
             markerContext.getLocationName(marker.location.latitude, marker.location.longitude)
 

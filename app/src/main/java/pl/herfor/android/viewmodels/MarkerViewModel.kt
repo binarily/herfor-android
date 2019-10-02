@@ -33,8 +33,8 @@ class MarkerViewModel : ViewModel() {
     val accidentFilterChanged: MutableLiveData<AccidentType> by lazy {
         MutableLiveData<AccidentType>()
     }
-    val markerFromNotificationStatus: MutableLiveData<String> by lazy {
-        MutableLiveData<String>()
+    val markerFromNotificationStatus: MutableLiveData<String?> by lazy {
+        MutableLiveData<String?>()
     }
 
     //All markers
