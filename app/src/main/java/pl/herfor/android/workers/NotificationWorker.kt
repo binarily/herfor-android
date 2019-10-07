@@ -52,7 +52,7 @@ class NotificationWorker(context: Context, workerParams: WorkerParameters) :
         val severities = sharedPreferences.getSeverities()
         val accidentTypes = sharedPreferences.getAccidentTypes()
         if (!(accidentTypes.contains(marker.properties.accidentType) && severities.contains(marker.properties.severityType))) {
-            Result.success()
+            return@coroutineScope Result.success()
         }
 
         val markerLocation = marker.location.toLocation()
@@ -64,7 +64,7 @@ class NotificationWorker(context: Context, workerParams: WorkerParameters) :
 
         //TODO: make this dependent on current activity
         if (distance == -1L || distance > 100) {
-            Result.success()
+            return@coroutineScope Result.success()
         }
 
         val location =
@@ -104,6 +104,6 @@ class NotificationWorker(context: Context, workerParams: WorkerParameters) :
         }
 
         // Indicate whether the task finished successfully with the Result
-        Result.success()
+        return@coroutineScope Result.success()
     }
 }
