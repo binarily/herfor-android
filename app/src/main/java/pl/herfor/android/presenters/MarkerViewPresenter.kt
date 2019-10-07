@@ -22,6 +22,8 @@ import pl.herfor.android.interfaces.ContextRepository
 import pl.herfor.android.interfaces.MarkerContract
 import pl.herfor.android.objects.*
 import pl.herfor.android.utils.Constants.Companion.NOTIFICATION_CHANNEL_ID
+import pl.herfor.android.utils.getAccidentTypes
+import pl.herfor.android.utils.getSeverities
 import pl.herfor.android.utils.toLatLng
 import pl.herfor.android.utils.toPoint
 import pl.herfor.android.viewmodels.MarkerViewModel
@@ -244,19 +246,7 @@ class MarkerViewPresenter(
 
     private fun initializeSeverityTypes() {
         val sharedPreferences = context.getSharedPreferences("preferences", Context.MODE_PRIVATE)
-        val severities = arrayOf(
-            if (sharedPreferences.getBoolean(
-                    "severityType.GREEN",
-                    false
-                )
-            ) SeverityType.GREEN else null,
-            if (sharedPreferences.getBoolean(
-                    "severityType.YELLOW",
-                    true
-                )
-            ) SeverityType.YELLOW else null,
-            if (sharedPreferences.getBoolean("severityType.RED", true)) SeverityType.RED else null
-        )
+        val severities = sharedPreferences.getSeverities()
 
         model.visibleSeverities.clear()
         model.visibleSeverities.addAll(severities.filterNotNull())
@@ -264,17 +254,7 @@ class MarkerViewPresenter(
 
     private fun initializeAccidentTypes() {
         val sharedPreferences = context.getSharedPreferences("preferences", Context.MODE_PRIVATE)
-        val accidentTypes = mutableListOf<AccidentType?>()
-
-        for (accidentType in AccidentType.values()) {
-            accidentTypes.add(
-                if (sharedPreferences.getBoolean(
-                        "accidentType.${accidentType.name}",
-                        true
-                    )
-                ) accidentType else null
-            )
-        }
+        val accidentTypes = sharedPreferences.getAccidentTypes()
 
         model.visibleAccidentTypes.clear()
         model.visibleAccidentTypes.addAll(accidentTypes.filterNotNull())
@@ -350,7 +330,7 @@ class MarkerViewPresenter(
 
         when (model.visibleSeverities.contains(severityType)) {
             true -> {
-                sharedPreferences.edit().putBoolean("severityType.${severityType.name}", true)
+                sharedPreferences.edit().putBoolean("severityType.${severityType.name}", false)
                     .apply()
                 model.visibleSeverities.remove(severityType)
                 model.markerDatabase.getBySeverity(severityType)
@@ -364,7 +344,7 @@ class MarkerViewPresenter(
                         })
             }
             false -> {
-                sharedPreferences.edit().putBoolean("severityType.${severityType.name}", false)
+                sharedPreferences.edit().putBoolean("severityType.${severityType.name}", true)
                     .apply()
                 model.visibleSeverities.add(severityType)
                 model.markerDatabase.getBySeverity(severityType)
@@ -385,7 +365,7 @@ class MarkerViewPresenter(
 
         when (model.visibleAccidentTypes.contains(accidentType)) {
             true -> {
-                sharedPreferences.edit().putBoolean("accidentType.${accidentType.name}", true)
+                sharedPreferences.edit().putBoolean("accidentType.${accidentType.name}", false)
                     .apply()
                 model.visibleAccidentTypes.remove(accidentType)
                 model.markerDatabase.getByAccidentType(accidentType)
@@ -399,7 +379,7 @@ class MarkerViewPresenter(
                         })
             }
             false -> {
-                sharedPreferences.edit().putBoolean("accidentType.${accidentType.name}", false)
+                sharedPreferences.edit().putBoolean("accidentType.${accidentType.name}", true)
                     .apply()
                 model.visibleAccidentTypes.add(accidentType)
                 model.markerDatabase.getByAccidentType(accidentType)

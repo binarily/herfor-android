@@ -1,5 +1,6 @@
 package pl.herfor.android
 
+import android.app.Application
 import com.nhaarman.mockitokotlin2.mock
 import com.nhaarman.mockitokotlin2.spy
 import org.junit.After
@@ -11,7 +12,8 @@ import pl.herfor.android.viewmodels.MarkerViewModel
 
 class PresenterUnitTest {
 
-    private val model = MarkerViewModel()
+    private val application = mock<Application>()
+    private val model = MarkerViewModel(application)
     private val viewMock = spy<MarkerContract.View>()
     private val contextMock = mock<MarkerContext>()
 

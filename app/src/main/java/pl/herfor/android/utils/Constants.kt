@@ -1,5 +1,6 @@
 package pl.herfor.android.utils
 
+import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 
 class Constants {
@@ -15,7 +16,7 @@ class Constants {
         const val NOTIFICATION_MESSAGE_LATITUDE_KEY = "latitude"
         const val NOTIFICATION_MESSAGE_LONGITUDE_KEY = "longitude"
         const val INTENT_MARKER_ID_KEY = "markerId"
-        val GSON = GsonBuilder()
+        val GSON: Gson = GsonBuilder()
             .setDateFormat("yyyy-MM-dd HH:mm:ss")
             .create()
 

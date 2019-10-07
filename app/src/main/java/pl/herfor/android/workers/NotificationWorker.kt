@@ -14,6 +14,8 @@ import pl.herfor.android.activities.MapsActivity
 import pl.herfor.android.contexts.MarkerContext
 import pl.herfor.android.objects.MarkerData
 import pl.herfor.android.utils.Constants
+import pl.herfor.android.utils.getAccidentTypes
+import pl.herfor.android.utils.getSeverities
 import pl.herfor.android.utils.toLocation
 import kotlin.math.roundToLong
 import kotlin.random.Random
@@ -45,6 +47,13 @@ class NotificationWorker(context: Context, workerParams: WorkerParameters) :
         )
 
         //TODO: check severity and accident type for whether it's worth showing
+        val sharedPreferences =
+            applicationContext.getSharedPreferences("preferences", Context.MODE_PRIVATE)
+        val severities = sharedPreferences.getSeverities()
+        val accidentTypes = sharedPreferences.getAccidentTypes()
+        if (!(accidentTypes.contains(marker.properties.accidentType) && severities.contains(marker.properties.severityType))) {
+            Result.success()
+        }
 
         val markerLocation = marker.location.toLocation()
         var distance = -1L
