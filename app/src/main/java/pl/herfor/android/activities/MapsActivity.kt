@@ -4,7 +4,6 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.graphics.drawable.TransitionDrawable
 import android.os.Bundle
-import android.text.format.DateUtils
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -43,6 +42,7 @@ import pl.herfor.android.utils.Constants.Companion.CHIP_ID_KEY
 import pl.herfor.android.utils.Constants.Companion.RIGHT_BUTTON_STATE_KEY
 import pl.herfor.android.utils.Constants.Companion.ZOOM_LEVEL
 import pl.herfor.android.utils.toPoint
+import pl.herfor.android.utils.toRelativeDateString
 import pl.herfor.android.viewmodels.MarkerViewModel
 import kotlin.concurrent.thread
 
@@ -124,8 +124,8 @@ class MapsActivity : AppCompatActivity(), MarkerContract.View, FilterSheetFragme
         presenter.checkForPlayServices()
 
         if (notificationMarkerReady) {
-            presenter.displayMarkerFromNotifications(intent.extras.getString(Constants.INTENT_MARKER_ID_KEY))
-            intent.extras.remove(Constants.INTENT_MARKER_ID_KEY)
+            presenter.displayMarkerFromNotifications(intent?.extras?.getString(Constants.INTENT_MARKER_ID_KEY))
+            intent?.extras?.remove(Constants.INTENT_MARKER_ID_KEY)
             notificationMarkerReady = false
         }
     }
@@ -196,18 +196,14 @@ class MapsActivity : AppCompatActivity(), MarkerContract.View, FilterSheetFragme
     }
 
     //TODO: replace with data binding
-    override fun showDetailsSheet(markerData: MarkerData) {
+    override fun showDetailsSheet(marker: MarkerData) {
         runOnUiThread {
-            detailsTypeChip.text = markerData.properties.accidentType.toHumanReadableString(this)
+            detailsTypeChip.text = marker.properties.accidentType.toHumanReadableString(this)
             detailsSeverityChip.text =
-                markerData.properties.severityType.toHumanReadableString(this)
-            detailsSeverityChip.chipBackgroundColor = markerData.properties.severityType.toColor(this)
-            detailsTimeTextView.text = getString(R.string.time_details_description).format(
-                DateUtils.getRelativeTimeSpanString(
-                markerData.properties.creationDate.time,
-                System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE
-                ).toString()
-            )
+                marker.properties.severityType.toHumanReadableString(this)
+            detailsSeverityChip.chipBackgroundColor = marker.properties.severityType.toColor(this)
+            detailsTimeTextView.text =
+                getString(R.string.time_details_description).toRelativeDateString(marker.properties.creationDate)
 
             //This will be filled in showLocationOnDetailsSheet()
             detailsPlaceTextView.text = "..."

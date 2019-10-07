@@ -1,5 +1,6 @@
 package pl.herfor.android.retrofits
 
+import pl.herfor.android.objects.MarkerAddRequest
 import pl.herfor.android.objects.MarkerData
 import pl.herfor.android.objects.MarkersLookupRequest
 import retrofit2.Call
@@ -23,5 +24,5 @@ interface MarkerRetrofit {
     fun getMarker(@Path("id") id: String): Call<MarkerData>
 
     @POST("markers/create")
-    fun addMarker(@Body marker: MarkerData): Call<MarkerData>
+    fun addMarker(@Body request: MarkerAddRequest): Call<MarkerData>
 }

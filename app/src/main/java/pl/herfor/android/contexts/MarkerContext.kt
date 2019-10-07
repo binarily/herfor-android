@@ -12,6 +12,7 @@ import androidx.lifecycle.LifecycleOwner
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.tasks.Task
 import pl.herfor.android.R
+import pl.herfor.android.database.MarkerDatabase
 import pl.herfor.android.interfaces.ContextRepository
 import java.io.IOException
 
@@ -54,5 +55,9 @@ class MarkerContext(private var context: Context) : ContextRepository {
 
     override fun getSharedPreferences(name: String, mode: Int): SharedPreferences {
         return context.getSharedPreferences(name, mode)
+    }
+
+    override fun getDatabase(): MarkerDatabase {
+        return MarkerDatabase.getDatabase(context)
     }
 }

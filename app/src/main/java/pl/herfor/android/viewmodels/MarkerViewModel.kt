@@ -1,28 +1,35 @@
 package pl.herfor.android.viewmodels
 
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.ViewModel
 import com.google.android.gms.maps.model.Marker
-import com.google.gson.GsonBuilder
+import pl.herfor.android.database.MarkerDatabase
 import pl.herfor.android.objects.*
 import pl.herfor.android.retrofits.MarkerRetrofit
+import pl.herfor.android.utils.Constants
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import kotlin.concurrent.thread
 
-class MarkerViewModel : ViewModel() {
+class MarkerViewModel(application: Application) : AndroidViewModel(application) {
 
     //Observables
     val addMarkerToMap: MutableLiveData<MarkerData> by lazy {
         MutableLiveData<MarkerData>()
     }
-    val removeMarkerFromMap: MutableLiveData<MarkerData> by lazy {
+    val removeMarkerFromMap: MutableLiveData<String> by lazy {
+        MutableLiveData<String>()
+    }
+    val updateMarkerOnMap: MutableLiveData<MarkerData> by lazy {
         MutableLiveData<MarkerData>()
     }
-    val connectionStatus: MutableLiveData<Boolean> by lazy {
-        MutableLiveData<Boolean>()
+
+    val connectionStatus: MutableLiveData<Boolean?> by lazy {
+        MutableLiveData<Boolean?>()
     }
     val submittingMarkerStatus: MutableLiveData<Boolean> by lazy {
         MutableLiveData<Boolean>()
@@ -38,8 +45,8 @@ class MarkerViewModel : ViewModel() {
     }
 
     //All markers
-    val markersByPoint: HashMap<Point, MarkerData> = HashMap()
-    val markersById: HashMap<String, MarkerData> = HashMap()
+    val markerDatabase = MarkerDatabase.getDatabase(getApplication()).markerDao()
+    val existingMarkers = markerDatabase.getAll()
     //Map of markers on map
     val mapMarkers = HashMap<String, Marker>()
 
@@ -54,12 +61,9 @@ class MarkerViewModel : ViewModel() {
     )
 
     //Retrofit
-    private val gson = GsonBuilder()
-        .setDateFormat("yyyy-MM-dd HH:mm:ss")
-        .create()
     private val retrofit = Retrofit.Builder()
-        .baseUrl("http://192.168.0.127:8080/")
-        .addConverterFactory(GsonConverterFactory.create(gson))
+        .baseUrl("http://192.168.0.126:8080/")
+        .addConverterFactory(GsonConverterFactory.create(Constants.GSON))
         .build()
     private val service = retrofit.create(MarkerRetrofit::class.java)
 
@@ -79,8 +83,20 @@ class MarkerViewModel : ViewModel() {
         service.listMarkersNearbySince(request).enqueue(markersCallback())
     }
 
-    fun addMarker(marker: MarkerData) {
-        service.addMarker(marker).enqueue(markersAddCallback())
+    fun addMarker(request: MarkerAddRequest) {
+        service.addMarker(request).enqueue(markersAddCallback())
+    }
+
+    private fun threadSafeInsert(markerData: MarkerData) {
+        thread {
+            markerDatabase.insert(markerData)
+        }
+    }
+
+    private fun threadSafeDelete(markerData: MarkerData) {
+        thread {
+            markerDatabase.delete(markerData)
+        }
     }
 
     private fun markersCallback(): Callback<List<MarkerData>> {
@@ -97,26 +113,10 @@ class MarkerViewModel : ViewModel() {
                 response?.body()?.forEach { marker ->
                     when (marker.properties.severityType) {
                         SeverityType.NONE -> {
-                            markersByPoint.remove(marker.location)
-                            markersById.remove(marker.id)
-                            removeMarkerFromMap.value = marker
+                            threadSafeDelete(marker)
                         }
                         else -> {
-                            if (marker.id != null && !markersById.containsKey(marker.id!!)) {
-                                markersByPoint[marker.location] = marker
-                                markersById[marker.id!!] = marker
-                                if (visibleSeverities.contains(marker.properties.severityType) && visibleAccidentTypes.contains(
-                                        marker.properties.accidentType
-                                    )
-                                ) {
-                                    addMarkerToMap.value = marker
-                                }
-                            } else {
-                                removeMarkerFromMap.value = marker
-                                val modifiedMarker = markersById[marker.id]
-                                modifiedMarker?.properties = marker.properties
-                                addMarkerToMap.value = marker
-                            }
+                            threadSafeInsert(marker)
                         }
                     }
                 }
@@ -134,9 +134,7 @@ class MarkerViewModel : ViewModel() {
                 val marker = response.body()
                 if (marker?.id != null) {
                     submittingMarkerStatus.value = true
-                    markersByPoint[marker.location] = marker
-                    markersById[marker.id!!] = marker
-                    addMarkerToMap.value = marker
+                    threadSafeInsert(marker)
                 }
             }
 
@@ -154,30 +152,15 @@ class MarkerViewModel : ViewModel() {
                 val marker = response.body()
                 when (marker?.properties?.severityType) {
                     SeverityType.NONE -> {
-                        markersByPoint.remove(marker.location)
-                        markersById.remove(marker.id)
-                        removeMarkerFromMap.value = marker
+                        threadSafeDelete(marker)
                         markerFromNotificationStatus.value = null
                     }
+                    //TODO: Kiedy to ma miejsce? Nigdy - to jest error!
                     null -> {
                         markerFromNotificationStatus.value = null
                     }
                     else -> {
-                        if (!markersById.containsKey(marker.id)) {
-                            markersByPoint[marker.location] = marker
-                            markersById[marker.id!!] = marker
-                            if (visibleSeverities.contains(marker.properties.severityType) && visibleAccidentTypes.contains(
-                                    marker.properties.accidentType
-                                )
-                            ) {
-                                addMarkerToMap.value = marker
-                            }
-                        } else {
-                            removeMarkerFromMap.value = marker
-                            val modifiedMarker = markersById[marker.id]
-                            modifiedMarker?.properties = marker.properties
-                            addMarkerToMap.value = marker
-                        }
+                        threadSafeInsert(marker)
                         markerFromNotificationStatus.value = marker.id
                     }
                 }

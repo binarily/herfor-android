@@ -13,6 +13,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Observer
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.android.gms.maps.model.Marker
 import com.google.firebase.messaging.FirebaseMessaging
@@ -40,6 +41,10 @@ class MarkerViewPresenter(
             Observer { marker -> addMarkerToMapObserver(marker) })
         model.removeMarkerFromMap.observe(context.getLifecycleOwner(),
             Observer { marker -> removeMarkerFromMapObserver(marker) })
+        model.updateMarkerOnMap.observe(context.getLifecycleOwner(),
+            Observer { marker -> updateMarkerOnMapObserver(marker) })
+        model.existingMarkers.observe(context.getLifecycleOwner(),
+            Observer { newMarkerList -> handleChangesInMarkers(newMarkerList) })
         model.submittingMarkerStatus.observe(context.getLifecycleOwner(),
             Observer { status -> submittingMarkerObserver(status) })
         model.connectionStatus.observe(context.getLifecycleOwner(),
@@ -68,6 +73,7 @@ class MarkerViewPresenter(
     override fun stop() {
         model.addMarkerToMap.removeObservers(context.getLifecycleOwner())
         model.removeMarkerFromMap.removeObservers(context.getLifecycleOwner())
+        model.updateMarkerOnMap.removeObservers(context.getLifecycleOwner())
         model.submittingMarkerStatus.removeObservers(context.getLifecycleOwner())
         model.connectionStatus.removeObservers(context.getLifecycleOwner())
         model.accidentFilterChanged.removeObservers(context.getLifecycleOwner())
@@ -95,7 +101,7 @@ class MarkerViewPresenter(
         if (locationPermissionAvailable()) {
             context.getCurrentLocation().addOnSuccessListener { location: Location? ->
                 if (location != null) {
-                    val marker = MarkerData(location.toPoint(), markerProperties)
+                    val marker = MarkerAddRequest(location.toPoint(), markerProperties)
                     model.addMarker(marker)
                 } else {
                     view.showSubmitMarkerFailure()
@@ -181,8 +187,10 @@ class MarkerViewPresenter(
         model.accidentFilterChanged.value = accidentType
     }
 
-    override fun displayMarkerFromNotifications(id: String) {
-        model.loadSingleMarkerForNotification(id)
+    override fun displayMarkerFromNotifications(id: String?) {
+        if (id != null) {
+            model.loadSingleMarkerForNotification(id)
+        }
     }
 
     private fun locationPermissionAvailable(): Boolean {
@@ -288,18 +296,30 @@ class MarkerViewPresenter(
     }
 
     private fun addMarkerToMapObserver(marker: MarkerData) {
-        if (marker.id != null) {
+        if (model.visibleSeverities.contains(marker.properties.severityType) && model.visibleAccidentTypes.contains(
+                marker.properties.accidentType
+            )
+        ) {
             val mapsMarker = view.addMarker(marker)
             mapsMarker.tag = marker
-            model.mapMarkers[marker.id!!] = mapsMarker
-        } else {
-            //TODO: log.e
+            model.mapMarkers[marker.id] = mapsMarker
         }
     }
 
-    private fun removeMarkerFromMapObserver(marker: MarkerData) {
-        model.mapMarkers[marker.id]?.remove()
-        model.mapMarkers.remove(marker.id)
+    private fun removeMarkerFromMapObserver(markerId: String) {
+        model.mapMarkers[markerId]?.remove()
+        model.mapMarkers.remove(markerId)
+    }
+
+    private fun updateMarkerOnMapObserver(marker: MarkerData) {
+        val mapMarker = model.mapMarkers[marker.id]
+
+        if ((mapMarker?.tag as MarkerData).properties == marker.properties) {
+            return
+        } else {
+            mapMarker.tag = marker
+            mapMarker.setIcon(BitmapDescriptorFactory.fromResource(marker.properties.getGlyph()))
+        }
     }
 
     private fun submittingMarkerObserver(status: Boolean) {
@@ -313,7 +333,7 @@ class MarkerViewPresenter(
         }
     }
 
-    private fun connectionStatusObserver(status: Boolean) {
+    private fun connectionStatusObserver(status: Boolean?) {
         when (status) {
             true -> {
                 view.dismissConnectionError()
@@ -333,15 +353,29 @@ class MarkerViewPresenter(
                 sharedPreferences.edit().putBoolean("severityType.${severityType.name}", true)
                     .apply()
                 model.visibleSeverities.remove(severityType)
-                model.markersByPoint.filter { marker -> marker.value.properties.severityType == severityType }
-                    .forEach { marker -> model.removeMarkerFromMap.value = marker.value }
+                model.markerDatabase.getBySeverity(severityType)
+                    .observe(context.getLifecycleOwner(),
+                        Observer { markers ->
+                            markers.forEach { marker ->
+                                model.removeMarkerFromMap.value = marker.id
+                                model.markerDatabase.getBySeverity(severityType)
+                                    .removeObservers(context.getLifecycleOwner())
+                            }
+                        })
             }
             false -> {
                 sharedPreferences.edit().putBoolean("severityType.${severityType.name}", false)
                     .apply()
                 model.visibleSeverities.add(severityType)
-                model.markersByPoint.filter { marker -> marker.value.properties.severityType == severityType }
-                    .forEach { marker -> model.addMarkerToMap.value = marker.value }
+                model.markerDatabase.getBySeverity(severityType)
+                    .observe(context.getLifecycleOwner(),
+                        Observer { markers ->
+                            markers.forEach { marker ->
+                                model.addMarkerToMap.value = marker
+                                model.markerDatabase.getBySeverity(severityType)
+                                    .removeObservers(context.getLifecycleOwner())
+                            }
+                        })
             }
         }
     }
@@ -354,17 +388,41 @@ class MarkerViewPresenter(
                 sharedPreferences.edit().putBoolean("accidentType.${accidentType.name}", true)
                     .apply()
                 model.visibleAccidentTypes.remove(accidentType)
-                model.markersByPoint.filter { marker -> marker.value.properties.accidentType == accidentType }
-                    .forEach { marker -> model.removeMarkerFromMap.value = marker.value }
+                model.markerDatabase.getByAccidentType(accidentType)
+                    .observe(context.getLifecycleOwner(),
+                        Observer { markers ->
+                            markers.forEach { marker ->
+                                model.removeMarkerFromMap.value = marker.id
+                                model.markerDatabase.getByAccidentType(accidentType)
+                                    .removeObservers(context.getLifecycleOwner())
+                            }
+                        })
             }
             false -> {
                 sharedPreferences.edit().putBoolean("accidentType.${accidentType.name}", false)
                     .apply()
                 model.visibleAccidentTypes.add(accidentType)
-                model.markersByPoint.filter { marker -> marker.value.properties.accidentType == accidentType }
-                    .forEach { marker -> model.addMarkerToMap.value = marker.value }
+                model.markerDatabase.getByAccidentType(accidentType)
+                    .observe(context.getLifecycleOwner(),
+                        Observer { markers ->
+                            markers.forEach { marker ->
+                                model.addMarkerToMap.value = marker
+                                model.markerDatabase.getByAccidentType(accidentType)
+                                    .removeObservers(context.getLifecycleOwner())
+                            }
+                        })
             }
         }
     }
 
+    private fun handleChangesInMarkers(newMarkerList: List<MarkerData>) {
+        model.mapMarkers.keys.filterNot { id -> newMarkerList.any { markerData -> markerData.id == id } }
+            .forEach { id -> model.removeMarkerFromMap.value = id }
+
+        newMarkerList.filter { markerData -> model.mapMarkers.containsKey(markerData.id) }
+            .forEach { markerData -> model.updateMarkerOnMap.value = markerData }
+
+        newMarkerList.filterNot { markerData -> model.mapMarkers.containsKey(markerData.id) }
+            .forEach { markerData -> model.addMarkerToMap.value = markerData }
+    }
 }

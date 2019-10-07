@@ -8,7 +8,6 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import com.google.gson.GsonBuilder
 import kotlinx.coroutines.coroutineScope
 import pl.herfor.android.R
 import pl.herfor.android.activities.MapsActivity
@@ -40,13 +39,12 @@ class NotificationWorker(context: Context, workerParams: WorkerParameters) :
                 PendingIntent.FLAG_UPDATE_CURRENT
             )
 
-        val gson = GsonBuilder()
-            .setDateFormat("yyyy-MM-dd HH:mm:ss")
-            .create()
-        val marker = gson.fromJson(
+        val marker = Constants.GSON.fromJson(
             inputData.getString(Constants.NOTIFICATION_MESSAGE_MARKER_KEY),
-            MarkerData().javaClass
+            MarkerData::class.java
         )
+
+        //TODO: check severity and accident type for whether it's worth showing
 
         val markerLocation = marker.location.toLocation()
         var distance = -1L

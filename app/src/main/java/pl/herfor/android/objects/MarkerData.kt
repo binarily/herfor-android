@@ -1,9 +1,12 @@
 package pl.herfor.android.objects
 
+import androidx.room.Embedded
+import androidx.room.Entity
+import androidx.room.PrimaryKey
 
-data class MarkerData constructor(
-    var location: Point = Point(0.0, 0.0),
-    var properties: MarkerProperties = MarkerProperties(AccidentType.PEDESTRIAN)
-) {
-    var id: String? = null
-}
+@Entity(tableName = "markers")
+data class MarkerData(
+    @PrimaryKey var id: String,
+    @Embedded var location: Point,
+    @Embedded var properties: MarkerProperties
+)

@@ -1,5 +1,6 @@
 package pl.herfor.android.objects
 
+import androidx.room.Ignore
 import java.util.*
 
 data class MarkerProperties(
@@ -7,6 +8,7 @@ data class MarkerProperties(
     val accidentType: AccidentType,
     val severityType: SeverityType
 ) {
+    @Ignore
     constructor(accidentType: AccidentType) : this(Date(System.currentTimeMillis()), accidentType, SeverityType.GREEN)
 
     fun getGlyph(): Int {

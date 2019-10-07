@@ -49,6 +49,6 @@ interface MarkerContract {
         fun toggleSeverityType(severityType: SeverityType)
         fun toggleAccidentType(accidentType: AccidentType)
 
-        fun displayMarkerFromNotifications(id: String)
+        fun displayMarkerFromNotifications(id: String?)
     }
 }
