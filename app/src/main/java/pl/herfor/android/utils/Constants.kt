@@ -11,11 +11,18 @@ class Constants {
         const val BUTTON_ANIMATION_DURATION = 200
         const val RIGHT_BUTTON_STATE_KEY = "rightButtonState"
         const val CHIP_ID_KEY = "chipId"
+        const val NOTIFICATION_MESSAGE_SEVERITY_KEY = "severity"
         const val NOTIFICATION_MESSAGE_ID_KEY = "id"
         const val NOTIFICATION_MESSAGE_MARKER_KEY = "marker"
         const val NOTIFICATION_MESSAGE_LATITUDE_KEY = "latitude"
         const val NOTIFICATION_MESSAGE_LONGITUDE_KEY = "longitude"
         const val INTENT_MARKER_ID_KEY = "markerId"
+
+        const val NOTIFICATION_MESSAGE_ACTION_KEY = "action"
+        const val ACTION_NEW = "marker-new"
+        const val ACTION_UPDATE = "marker-update"
+        const val ACTION_REMOVE = "marker-remove"
+
         val GSON: Gson = GsonBuilder()
             .setDateFormat("yyyy-MM-dd HH:mm:ss")
             .create()

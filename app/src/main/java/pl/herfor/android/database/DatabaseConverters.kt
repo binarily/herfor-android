@@ -2,6 +2,7 @@ package pl.herfor.android.database
 
 import androidx.room.TypeConverter
 import pl.herfor.android.objects.AccidentType
+import pl.herfor.android.objects.NotificationStatus
 import pl.herfor.android.objects.SeverityType
 import java.util.*
 
@@ -34,5 +35,15 @@ class DatabaseConverters {
     @TypeConverter
     fun stringToAccidentType(string: String?): AccidentType? {
         return AccidentType.valueOf(string.toString())
+    }
+
+    @TypeConverter
+    fun notificationStatusToString(notificationStatus: NotificationStatus?): String? {
+        return notificationStatus?.name
+    }
+
+    @TypeConverter
+    fun stringToNotificationStatus(string: String?): NotificationStatus? {
+        return NotificationStatus.valueOf(string.toString())
     }
 }

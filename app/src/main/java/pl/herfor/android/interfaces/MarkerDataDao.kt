@@ -4,6 +4,7 @@ import androidx.lifecycle.LiveData
 import androidx.room.*
 import pl.herfor.android.objects.AccidentType
 import pl.herfor.android.objects.MarkerData
+import pl.herfor.android.objects.NotificationStatus
 import pl.herfor.android.objects.SeverityType
 
 @Dao
@@ -41,4 +42,13 @@ interface MarkerDataDao {
     //Delete no longer existing reports
     @Delete
     fun delete(marker: MarkerData)
+
+    @Query("DELETE FROM markers WHERE id=:id")
+    fun deleteById(id: String)
+
+    @Query("UPDATE markers SET severityType = :severityType WHERE id = :id")
+    fun updateSeverity(severityType: SeverityType, id: String)
+
+    @Query("UPDATE markers SET notificationStatus = :notificationStatus WHERE id = :id")
+    fun updateNotificationStatus(notificationStatus: NotificationStatus, id: String)
 }

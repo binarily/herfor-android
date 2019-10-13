@@ -3,8 +3,10 @@ package pl.herfor.android.utils
 import android.content.SharedPreferences
 import android.location.Location
 import android.text.format.DateUtils
+import com.google.android.gms.location.DetectedActivity
 import com.google.android.gms.maps.model.LatLng
 import pl.herfor.android.objects.AccidentType
+import pl.herfor.android.objects.MarkerData
 import pl.herfor.android.objects.Point
 import pl.herfor.android.objects.SeverityType
 import java.util.*
@@ -41,7 +43,7 @@ internal fun String.toRelativeDateString(date: Date): String {
     )
 }
 
-internal fun SharedPreferences.getSeverities(): List<SeverityType?> {
+internal fun SharedPreferences.getSeverities(): List<SeverityType> {
     val severities = arrayOf(
         if (this.getBoolean(
                 "severityType.GREEN",
@@ -55,11 +57,11 @@ internal fun SharedPreferences.getSeverities(): List<SeverityType?> {
         ) SeverityType.YELLOW else null,
         if (this.getBoolean("severityType.RED", true)) SeverityType.RED else null
     )
-    return severities.toList()
+    return severities.toList().filterNotNull()
 
 }
 
-internal fun SharedPreferences.getAccidentTypes(): List<AccidentType?> {
+internal fun SharedPreferences.getAccidentTypes(): List<AccidentType> {
     val accidentTypes = mutableListOf<AccidentType?>()
 
     for (accidentType in AccidentType.values()) {
@@ -71,5 +73,33 @@ internal fun SharedPreferences.getAccidentTypes(): List<AccidentType?> {
             ) accidentType else null
         )
     }
-    return accidentTypes
+    return accidentTypes.filterNotNull()
+}
+
+internal fun MarkerData.isVisible(
+    allowedSeverities: List<SeverityType>,
+    allowedAccidents: List<AccidentType>
+): Boolean {
+    return allowedSeverities.contains(this.properties.severityType)
+            && allowedAccidents.contains(this.properties.accidentType)
+}
+
+internal fun Int.toDetectedActivityDistance(): Long {
+    when (this) {
+        DetectedActivity.STILL -> {
+            return 100
+        }
+        DetectedActivity.ON_FOOT, DetectedActivity.WALKING, DetectedActivity.RUNNING -> {
+            return 200
+        }
+        DetectedActivity.ON_BICYCLE -> {
+            return 400
+        }
+        DetectedActivity.IN_VEHICLE -> {
+            return 800
+        }
+        else -> {
+            return 100
+        }
+    }
 }

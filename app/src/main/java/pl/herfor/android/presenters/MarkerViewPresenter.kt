@@ -4,15 +4,22 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Location
 import android.os.Build
+import android.util.Log
 import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Observer
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
+import com.google.android.gms.location.ActivityRecognition
+import com.google.android.gms.location.ActivityTransition
+import com.google.android.gms.location.ActivityTransitionRequest
+import com.google.android.gms.location.DetectedActivity
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.android.gms.maps.model.Marker
@@ -21,11 +28,9 @@ import pl.herfor.android.R
 import pl.herfor.android.interfaces.ContextRepository
 import pl.herfor.android.interfaces.MarkerContract
 import pl.herfor.android.objects.*
+import pl.herfor.android.services.ActivityRecognitionService
+import pl.herfor.android.utils.*
 import pl.herfor.android.utils.Constants.Companion.NOTIFICATION_CHANNEL_ID
-import pl.herfor.android.utils.getAccidentTypes
-import pl.herfor.android.utils.getSeverities
-import pl.herfor.android.utils.toLatLng
-import pl.herfor.android.utils.toPoint
 import pl.herfor.android.viewmodels.MarkerViewModel
 import kotlin.concurrent.thread
 
@@ -67,7 +72,10 @@ class MarkerViewPresenter(
         view.setAccidentTypeFilters(model.visibleAccidentTypes)
 
         createNotificationChannel()
-        FirebaseMessaging.getInstance().subscribeToTopic("marker")
+        FirebaseMessaging.getInstance().subscribeToTopic("marker-new")
+        FirebaseMessaging.getInstance().subscribeToTopic("marker-remove")
+
+        createActivityRequest()
 
         model.started = true
     }
@@ -215,7 +223,7 @@ class MarkerViewPresenter(
                 context.getContext().getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)
         } else {
-            //TODO: log.d - do nothing
+            Log.d(this.javaClass.name, "Notification channel not necessary on this platform.")
         }
     }
 
@@ -244,12 +252,39 @@ class MarkerViewPresenter(
         }
     }
 
+    private fun createActivityRequest() {
+        val transitions = listOf<ActivityTransition>(
+            ActivityTransition.Builder().setActivityType(DetectedActivity.ON_FOOT)
+                .setActivityTransition(ActivityTransition.ACTIVITY_TRANSITION_ENTER)
+                .build(),
+            ActivityTransition.Builder().setActivityType(DetectedActivity.ON_BICYCLE)
+                .setActivityTransition(ActivityTransition.ACTIVITY_TRANSITION_ENTER)
+                .build(),
+            ActivityTransition.Builder().setActivityType(DetectedActivity.IN_VEHICLE)
+                .setActivityTransition(ActivityTransition.ACTIVITY_TRANSITION_ENTER)
+                .build(),
+            ActivityTransition.Builder().setActivityType(DetectedActivity.STILL)
+                .setActivityTransition(ActivityTransition.ACTIVITY_TRANSITION_ENTER)
+                .build()
+        )
+
+        val pendingIntent = PendingIntent.getService(
+            context.getContext(),
+            0,
+            Intent(context.getContext(), ActivityRecognitionService::class.java),
+            PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        ActivityRecognition.getClient(context.getContext())
+            .requestActivityTransitionUpdates(ActivityTransitionRequest(transitions), pendingIntent)
+    }
+
     private fun initializeSeverityTypes() {
         val sharedPreferences = context.getSharedPreferences("preferences", Context.MODE_PRIVATE)
         val severities = sharedPreferences.getSeverities()
 
         model.visibleSeverities.clear()
-        model.visibleSeverities.addAll(severities.filterNotNull())
+        model.visibleSeverities.addAll(severities)
     }
 
     private fun initializeAccidentTypes() {
@@ -257,7 +292,7 @@ class MarkerViewPresenter(
         val accidentTypes = sharedPreferences.getAccidentTypes()
 
         model.visibleAccidentTypes.clear()
-        model.visibleAccidentTypes.addAll(accidentTypes.filterNotNull())
+        model.visibleAccidentTypes.addAll(accidentTypes)
     }
 
     //OBSERVERS
@@ -276,10 +311,7 @@ class MarkerViewPresenter(
     }
 
     private fun addMarkerToMapObserver(marker: MarkerData) {
-        if (model.visibleSeverities.contains(marker.properties.severityType) && model.visibleAccidentTypes.contains(
-                marker.properties.accidentType
-            )
-        ) {
+        if (marker.isVisible(model.visibleSeverities, model.visibleAccidentTypes)) {
             val mapsMarker = view.addMarker(marker)
             mapsMarker.tag = marker
             model.mapMarkers[marker.id] = mapsMarker

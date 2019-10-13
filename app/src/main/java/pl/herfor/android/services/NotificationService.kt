@@ -10,8 +10,6 @@ import pl.herfor.android.workers.NotificationWorker
 
 class NotificationService : FirebaseMessagingService() {
     override fun onMessageReceived(p0: RemoteMessage) {
-
-
         val workData = workDataOf(*p0.data.toList().toTypedArray())
         val notificationWorkRequest = OneTimeWorkRequestBuilder<NotificationWorker>()
             .setInputData(workData)

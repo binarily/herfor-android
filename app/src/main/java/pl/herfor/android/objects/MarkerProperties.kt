@@ -6,7 +6,8 @@ import java.util.*
 data class MarkerProperties(
     val creationDate: Date,
     val accidentType: AccidentType,
-    val severityType: SeverityType
+    val severityType: SeverityType,
+    val notificationStatus: NotificationStatus = NotificationStatus.NotShown
 ) {
     @Ignore
     constructor(accidentType: AccidentType) : this(Date(System.currentTimeMillis()), accidentType, SeverityType.GREEN)

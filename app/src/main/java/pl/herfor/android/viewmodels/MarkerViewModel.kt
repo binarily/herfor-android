@@ -1,6 +1,7 @@
 package pl.herfor.android.viewmodels
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.MutableLiveData
 import com.google.android.gms.maps.model.Marker
@@ -155,8 +156,11 @@ class MarkerViewModel(application: Application) : AndroidViewModel(application) 
                         threadSafeDelete(marker)
                         markerFromNotificationStatus.value = null
                     }
-                    //TODO: Kiedy to ma miejsce? Nigdy - to jest error!
                     null -> {
+                        Log.e(
+                            this.javaClass.name,
+                            "Received marker with no severity, showing error"
+                        )
                         markerFromNotificationStatus.value = null
                     }
                     else -> {
