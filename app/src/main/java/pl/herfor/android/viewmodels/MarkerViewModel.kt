@@ -1,14 +1,18 @@
 package pl.herfor.android.viewmodels
 
 import android.app.Application
+import android.content.Context
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.MutableLiveData
 import com.google.android.gms.maps.model.Marker
 import pl.herfor.android.database.MarkerDatabase
 import pl.herfor.android.objects.*
+import pl.herfor.android.retrofits.GradeRetrofit
 import pl.herfor.android.retrofits.MarkerRetrofit
 import pl.herfor.android.utils.Constants
+import pl.herfor.android.utils.getAccidentTypes
+import pl.herfor.android.utils.getSeverities
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -35,68 +39,77 @@ class MarkerViewModel(application: Application) : AndroidViewModel(application) 
     val submittingMarkerStatus: MutableLiveData<Boolean> by lazy {
         MutableLiveData<Boolean>()
     }
-    val severityFilterChanged: MutableLiveData<SeverityType> by lazy {
-        MutableLiveData<SeverityType>()
-    }
-    val accidentFilterChanged: MutableLiveData<AccidentType> by lazy {
-        MutableLiveData<AccidentType>()
-    }
     val markerFromNotificationStatus: MutableLiveData<String?> by lazy {
         MutableLiveData<String?>()
     }
 
+    //View observers
+    //TODO: replace with LiveData for severity list
+    val severityFilterChanged: MutableLiveData<Severity> by lazy {
+        MutableLiveData<Severity>()
+    }
+    //TODO: replace with LiveData for accidentList
+    val accidentFilterChanged: MutableLiveData<Accident> by lazy {
+        MutableLiveData<Accident>()
+    }
+
     //All markers
-    val markerDatabase = MarkerDatabase.getDatabase(getApplication()).markerDao()
-    val existingMarkers = markerDatabase.getAll()
+    val markerDao = MarkerDatabase.getDatabase(getApplication()).markerDao()
+    val existingMarkers = markerDao.getAll()
     //Map of markers on map
     val mapMarkers = HashMap<String, Marker>()
 
+    //Grade DAO
+    val gradeDao = MarkerDatabase.getDatabase(getApplication()).gradeDao()
+
     //Settings
-    var locationEnabled = false
     var insideLocationArea = true
     var started = false
-    var visibleSeverities = arrayListOf(SeverityType.GREEN, SeverityType.YELLOW, SeverityType.RED)
-    var visibleAccidentTypes = arrayListOf(
-        AccidentType.BIKE, AccidentType.BUS, AccidentType.METRO,
-        AccidentType.PEDESTRIAN, AccidentType.RAIL, AccidentType.TRAM
-    )
+    var buttonState = RightButtonMode.DISABLED
+
+    val sharedPreferences = application.getSharedPreferences("preferences", Context.MODE_PRIVATE)
+    var visibleSeverities = sharedPreferences.getSeverities()
+    var visibleAccidentTypes = sharedPreferences.getAccidentTypes()
 
     //Retrofit
     private val retrofit = Retrofit.Builder()
         .baseUrl("http://192.168.0.126:8080/")
         .addConverterFactory(GsonConverterFactory.create(Constants.GSON))
         .build()
-    private val service = retrofit.create(MarkerRetrofit::class.java)
-
-    fun loadAllMarkers() {
-        service.listMarkers().enqueue(markersCallback())
-    }
+    private val markerRetrofit = retrofit.create(MarkerRetrofit::class.java)
+    private val gradeRetrofit = retrofit.create(GradeRetrofit::class.java)
 
     fun loadSingleMarkerForNotification(id: String) {
-        service.getMarker(id).enqueue(singleMarkerForNotificationCallback())
-    }
-
-    fun loadAllVisibleMarkers(request: MarkersLookupRequest) {
-        service.listMarkersNearby(request).enqueue(markersCallback())
+        markerRetrofit.getMarker(id).enqueue(singleMarkerForNotificationCallback())
     }
 
     fun loadVisibleMarkersChangedSince(request: MarkersLookupRequest) {
-        service.listMarkersNearbySince(request).enqueue(markersCallback())
+        markerRetrofit.listMarkersNearbySince(request).enqueue(markersCallback())
     }
 
-    fun addMarker(request: MarkerAddRequest) {
-        service.addMarker(request).enqueue(markersAddCallback())
+    fun submitMarker(request: MarkerAddRequest) {
+        markerRetrofit.addMarker(request).enqueue(markersAddCallback())
+    }
+
+    fun submitGrade(request: MarkerGradeRequest) {
+        gradeRetrofit.create(request).enqueue(gradeCallback())
     }
 
     private fun threadSafeInsert(markerData: MarkerData) {
         thread {
-            markerDatabase.insert(markerData)
+            markerDao.insert(markerData)
         }
     }
 
     private fun threadSafeDelete(markerData: MarkerData) {
         thread {
-            markerDatabase.delete(markerData)
+            markerDao.delete(markerData)
+        }
+    }
+
+    private fun threadSafeInsert(markerGrade: MarkerGrade) {
+        thread {
+            gradeDao.insert(markerGrade)
         }
     }
 
@@ -112,8 +125,8 @@ class MarkerViewModel(application: Application) : AndroidViewModel(application) 
             ) {
                 connectionStatus.value = true
                 response?.body()?.forEach { marker ->
-                    when (marker.properties.severityType) {
-                        SeverityType.NONE -> {
+                    when (marker.properties.severity) {
+                        Severity.NONE -> {
                             threadSafeDelete(marker)
                         }
                         else -> {
@@ -151,8 +164,8 @@ class MarkerViewModel(application: Application) : AndroidViewModel(application) 
 
             override fun onResponse(call: Call<MarkerData>, response: Response<MarkerData>) {
                 val marker = response.body()
-                when (marker?.properties?.severityType) {
-                    SeverityType.NONE -> {
+                when (marker?.properties?.severity) {
+                    Severity.NONE -> {
                         threadSafeDelete(marker)
                         markerFromNotificationStatus.value = null
                     }
@@ -167,6 +180,22 @@ class MarkerViewModel(application: Application) : AndroidViewModel(application) 
                         threadSafeInsert(marker)
                         markerFromNotificationStatus.value = marker.id
                     }
+                }
+            }
+
+        }
+    }
+
+    private fun gradeCallback(): Callback<MarkerGrade> {
+        return object : Callback<MarkerGrade> {
+            override fun onFailure(call: Call<MarkerGrade>, t: Throwable) {
+                connectionStatus.value = false
+            }
+
+            override fun onResponse(call: Call<MarkerGrade>, response: Response<MarkerGrade>) {
+                val grade = response.body()
+                if (grade != null) {
+                    threadSafeInsert(grade)
                 }
             }
 

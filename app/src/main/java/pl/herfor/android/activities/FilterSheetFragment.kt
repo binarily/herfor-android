@@ -1,6 +1,5 @@
 package pl.herfor.android.activities
 
-import android.content.Context
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -9,21 +8,15 @@ import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.google.android.material.chip.Chip
 import kotlinx.android.synthetic.main.sheet_filter.*
 import pl.herfor.android.R
-import pl.herfor.android.objects.AccidentType
-import pl.herfor.android.objects.SeverityType
+import pl.herfor.android.interfaces.MarkerContract
+import pl.herfor.android.objects.Accident
+import pl.herfor.android.objects.Severity
+import pl.herfor.android.viewmodels.MarkerViewModel
 
-interface FilterSheetFragmentInterface {
-    fun toggleSeverityType(severityType: SeverityType)
-
-    fun toggleAccidentType(accidentType: AccidentType)
-}
-
-class FilterSheetFragment : BottomSheetDialogFragment() {
-
-    private lateinit var activity: FilterSheetFragmentInterface
-    private lateinit var severityTypes: List<SeverityType>
-    private lateinit var accidentTypes: List<AccidentType>
-
+class FilterSheetFragment(
+    private val presenter: MarkerContract.Presenter,
+    private val model: MarkerViewModel
+) : BottomSheetDialogFragment() {
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -32,47 +25,30 @@ class FilterSheetFragment : BottomSheetDialogFragment() {
         return inflater.inflate(R.layout.sheet_filter, container)
     }
 
-    override fun onAttach(context: Context) {
-        super.onAttach(context)
-        try {
-            activity = context as FilterSheetFragmentInterface
-        } catch (e: ClassCastException) {
-            throw ClassCastException("Fragment needs access to activity that extends FilterSheetFragmentInterface")
-        }
-    }
-
     override fun onStart() {
         super.onStart()
 
-        for (severityType in severityTypes) {
+        for (severityType in model.visibleSeverities) {
             (filterSeverityChipGroup.getChildAt(severityType.ordinal) as Chip).isChecked = true
         }
-        for (accidentType in accidentTypes) {
+        for (accidentType in model.visibleAccidentTypes) {
             (filterTypeChipGroup.getChildAt(accidentType.ordinal) as Chip).isChecked = true
         }
 
         for (i in 0 until filterSeverityChipGroup.childCount) {
             (filterSeverityChipGroup.getChildAt(i) as Chip).setOnCheckedChangeListener { compoundButton, b ->
-                activity.toggleSeverityType(
-                    SeverityType.values()[i]
+                presenter.toggleSeverityType(
+                    Severity.values()[i]
                 )
             }
         }
 
         for (i in 0 until filterTypeChipGroup.childCount) {
             (filterTypeChipGroup.getChildAt(i) as Chip).setOnCheckedChangeListener { compoundButton, b ->
-                activity.toggleAccidentType(
-                    AccidentType.values()[i]
+                presenter.toggleAccidentType(
+                    Accident.values()[i]
                 )
             }
         }
-    }
-
-    fun setSeverityTypes(checkedSeverityType: List<SeverityType>) {
-        severityTypes = checkedSeverityType
-    }
-
-    fun setAccidentTypes(checkedAccidentType: List<AccidentType>) {
-        accidentTypes = checkedAccidentType
     }
 }

@@ -10,23 +10,16 @@ interface MarkerContract {
         fun showSubmitMarkerFailure()
         fun showConnectionError()
         fun dismissConnectionError()
-        fun changeRightButtonState(rightButtonMode: RightButtonMode, transition: Boolean)
         fun getPermissionForLocation()
         fun setLocationStateForMap(state: Boolean)
         fun showAddSheet()
+        fun dismissAddSheet()
         fun showDetailsSheet(marker: MarkerData)
         fun showLocationOnDetailsSheet(location: String)
-        fun dismissSheet()
-        fun dismissAddSheet()
         fun moveCamera(position: LatLng, animate: Boolean)
         fun setRightButton(rightButtonMode: RightButtonMode, transition: Boolean)
 
-        fun addMarker(marker: MarkerData): Marker
-        fun removeMarker(marker: Marker)
-        fun removeAllMarkers()
-
-        fun setSeverityTypeFilters(severityTypes: List<SeverityType>)
-        fun setAccidentTypeFilters(accidentTypes: List<AccidentType>)
+        fun addMarkerToMap(marker: MarkerData): Marker
     }
 
     interface Presenter {
@@ -36,18 +29,17 @@ interface MarkerContract {
         fun displayMarkerDetails(marker: Marker)
         fun displayMarkerAdd()
         fun submitMarker(markerProperties: MarkerProperties)
-        fun loadVisibleMarkers(northEast: Point, southWest: Point)
+        fun loadMarkersToMap(northEast: Point, southWest: Point)
         fun handleLocationBeingEnabled()
         fun handleLocationBeingDisabled()
         fun zoomToCurrentLocation()
         fun showCurrentLocation()
         fun setRightButtonMode(bounds: LatLngBounds)
 
-        fun askForLocationPermission()
-        fun checkForPlayServices()
+        fun seekPermissions(checkLocation: Boolean)
 
-        fun toggleSeverityType(severityType: SeverityType)
-        fun toggleAccidentType(accidentType: AccidentType)
+        fun toggleSeverityType(severity: Severity)
+        fun toggleAccidentType(accident: Accident)
 
         fun displayMarkerFromNotifications(id: String?)
     }

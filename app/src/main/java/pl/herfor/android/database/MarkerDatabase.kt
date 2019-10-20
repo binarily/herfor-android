@@ -6,14 +6,16 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import pl.herfor.android.interfaces.MarkerDataDao
+import pl.herfor.android.interfaces.MarkerGradeDao
 import pl.herfor.android.objects.MarkerData
+import pl.herfor.android.objects.MarkerGrade
 
 
-@Database(entities = [MarkerData::class], version = 1)
+@Database(entities = [MarkerData::class, MarkerGrade::class], version = 1)
 @TypeConverters(DatabaseConverters::class)
 abstract class MarkerDatabase : RoomDatabase() {
     companion object {
-        var INSTANCE: MarkerDatabase? = null
+        private var INSTANCE: MarkerDatabase? = null
 
         fun getDatabase(context: Context): MarkerDatabase {
             if (INSTANCE == null) {
@@ -29,5 +31,7 @@ abstract class MarkerDatabase : RoomDatabase() {
     }
 
     abstract fun markerDao(): MarkerDataDao
+
+    abstract fun gradeDao(): MarkerGradeDao
 
 }

@@ -2,10 +2,10 @@ package pl.herfor.android.interfaces
 
 import androidx.lifecycle.LiveData
 import androidx.room.*
-import pl.herfor.android.objects.AccidentType
+import pl.herfor.android.objects.Accident
 import pl.herfor.android.objects.MarkerData
 import pl.herfor.android.objects.NotificationStatus
-import pl.herfor.android.objects.SeverityType
+import pl.herfor.android.objects.Severity
 
 @Dao
 interface MarkerDataDao {
@@ -29,11 +29,11 @@ interface MarkerDataDao {
         west: Double
     ): LiveData<List<MarkerData>>
 
-    @Query("SELECT * FROM markers WHERE severityType = :severityType")
-    fun getBySeverity(severityType: SeverityType): LiveData<List<MarkerData>>
+    @Query("SELECT * FROM markers WHERE severity = :severity")
+    fun getBySeverity(severity: Severity): LiveData<List<MarkerData>>
 
-    @Query("SELECT * FROM markers WHERE accidentType = :accidentType")
-    fun getByAccidentType(accidentType: AccidentType): LiveData<List<MarkerData>>
+    @Query("SELECT * FROM markers WHERE accident = :accident")
+    fun getByAccidentType(accident: Accident): LiveData<List<MarkerData>>
 
     //Add and update reports
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -46,8 +46,8 @@ interface MarkerDataDao {
     @Query("DELETE FROM markers WHERE id=:id")
     fun deleteById(id: String)
 
-    @Query("UPDATE markers SET severityType = :severityType WHERE id = :id")
-    fun updateSeverity(severityType: SeverityType, id: String)
+    @Query("UPDATE markers SET severity = :severity WHERE id = :id")
+    fun updateSeverity(severity: Severity, id: String)
 
     @Query("UPDATE markers SET notificationStatus = :notificationStatus WHERE id = :id")
     fun updateNotificationStatus(notificationStatus: NotificationStatus, id: String)

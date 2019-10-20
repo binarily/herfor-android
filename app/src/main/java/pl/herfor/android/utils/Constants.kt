@@ -1,5 +1,7 @@
 package pl.herfor.android.utils
 
+import com.google.android.gms.location.ActivityTransition
+import com.google.android.gms.location.DetectedActivity
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 
@@ -23,8 +25,23 @@ class Constants {
         const val ACTION_UPDATE = "marker-update"
         const val ACTION_REMOVE = "marker-remove"
 
+        val TRANSITIONS = listOf<ActivityTransition>(
+            ActivityTransition.Builder().setActivityType(DetectedActivity.ON_FOOT)
+                .setActivityTransition(ActivityTransition.ACTIVITY_TRANSITION_ENTER)
+                .build(),
+            ActivityTransition.Builder().setActivityType(DetectedActivity.ON_BICYCLE)
+                .setActivityTransition(ActivityTransition.ACTIVITY_TRANSITION_ENTER)
+                .build(),
+            ActivityTransition.Builder().setActivityType(DetectedActivity.IN_VEHICLE)
+                .setActivityTransition(ActivityTransition.ACTIVITY_TRANSITION_ENTER)
+                .build(),
+            ActivityTransition.Builder().setActivityType(DetectedActivity.STILL)
+                .setActivityTransition(ActivityTransition.ACTIVITY_TRANSITION_ENTER)
+                .build()
+        )
+
+
         val GSON: Gson = GsonBuilder()
-            .setDateFormat("yyyy-MM-dd HH:mm:ss")
             .create()
 
     }

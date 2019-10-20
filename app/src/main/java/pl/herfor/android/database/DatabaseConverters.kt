@@ -1,40 +1,46 @@
 package pl.herfor.android.database
 
 import androidx.room.TypeConverter
-import pl.herfor.android.objects.AccidentType
+import org.threeten.bp.OffsetDateTime
+import org.threeten.bp.format.DateTimeFormatter
+import pl.herfor.android.objects.Accident
+import pl.herfor.android.objects.Grade
 import pl.herfor.android.objects.NotificationStatus
-import pl.herfor.android.objects.SeverityType
-import java.util.*
+import pl.herfor.android.objects.Severity
 
 class DatabaseConverters {
+    private val formatter = DateTimeFormatter.ISO_OFFSET_DATE_TIME
+
     @TypeConverter
-    fun fromTimestamp(value: Long?): Date? {
-        return value?.let { Date(it) }
+    fun toOffsetDateTime(value: String?): OffsetDateTime? {
+        return value?.let {
+            return formatter.parse(value, OffsetDateTime::from)
+        }
     }
 
     @TypeConverter
-    fun dateToTimestamp(date: Date?): Long? {
-        return date?.time
+    fun fromOffsetDateTime(date: OffsetDateTime?): String? {
+        return date?.format(formatter)
     }
 
     @TypeConverter
-    fun severityTypeToString(severityType: SeverityType?): String? {
-        return severityType?.name
+    fun severityTypeToString(severity: Severity?): String? {
+        return severity?.name
     }
 
     @TypeConverter
-    fun stringToSeverityType(string: String?): SeverityType? {
-        return SeverityType.valueOf(string.toString())
+    fun stringToSeverityType(string: String?): Severity? {
+        return Severity.valueOf(string.toString())
     }
 
     @TypeConverter
-    fun accidentTypeToString(accidentType: AccidentType?): String? {
-        return accidentType?.name
+    fun accidentTypeToString(accident: Accident?): String? {
+        return accident?.name
     }
 
     @TypeConverter
-    fun stringToAccidentType(string: String?): AccidentType? {
-        return AccidentType.valueOf(string.toString())
+    fun stringToAccidentType(string: String?): Accident? {
+        return Accident.valueOf(string.toString())
     }
 
     @TypeConverter
@@ -45,5 +51,15 @@ class DatabaseConverters {
     @TypeConverter
     fun stringToNotificationStatus(string: String?): NotificationStatus? {
         return NotificationStatus.valueOf(string.toString())
+    }
+
+    @TypeConverter
+    fun gradeToString(grade: Grade?): String? {
+        return grade?.name
+    }
+
+    @TypeConverter
+    fun stringToName(string: String?): Grade? {
+        return Grade.valueOf(string.toString())
     }
 }

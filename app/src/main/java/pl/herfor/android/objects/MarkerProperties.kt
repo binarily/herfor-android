@@ -1,25 +1,29 @@
 package pl.herfor.android.objects
 
 import androidx.room.Ignore
+import org.threeten.bp.OffsetDateTime
 import java.util.*
 
 data class MarkerProperties(
-    val creationDate: Date,
-    val accidentType: AccidentType,
-    val severityType: SeverityType,
+    val creationDate: OffsetDateTime = OffsetDateTime.now(),
+    val modificationDate: OffsetDateTime = OffsetDateTime.now(),
+    val localModificationDate: OffsetDateTime = OffsetDateTime.now(),
+    val accident: Accident,
+    val severity: Severity,
     val notificationStatus: NotificationStatus = NotificationStatus.NotShown
 ) {
     @Ignore
-    constructor(accidentType: AccidentType) : this(Date(System.currentTimeMillis()), accidentType, SeverityType.GREEN)
+    constructor(accident: Accident) : this(
+        OffsetDateTime.now(), OffsetDateTime.now(),
+        OffsetDateTime.now(), accident, Severity.GREEN
+    )
 
     fun getGlyph(): Int {
         return getResId(
-            "ic_${accidentType.toString().toLowerCase(Locale.ROOT)}_${severityType.toString().toLowerCase(
-                Locale.ROOT
-            )}",
+            "ic_${accident.toString().toLowerCase(Locale.ROOT)}" +
+                    "_${severity.toString().toLowerCase(Locale.ROOT)}",
             pl.herfor.android.R.drawable::class.java
         )
-
     }
 
     private fun getResId(resName: String, c: Class<*>): Int {
@@ -30,6 +34,5 @@ data class MarkerProperties(
             e.printStackTrace()
             -1
         }
-
     }
 }

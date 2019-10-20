@@ -3,7 +3,7 @@ package pl.herfor.android.objects
 import android.content.Context
 import pl.herfor.android.R
 
-enum class AccidentType {
+enum class Accident {
     BUS, TRAM, RAIL, METRO, BIKE, PEDESTRIAN;
 
     fun toHumanReadableString(context: Context): String {

@@ -17,9 +17,7 @@ import androidx.lifecycle.Observer
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
 import com.google.android.gms.location.ActivityRecognition
-import com.google.android.gms.location.ActivityTransition
 import com.google.android.gms.location.ActivityTransitionRequest
-import com.google.android.gms.location.DetectedActivity
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.android.gms.maps.model.Marker
@@ -29,8 +27,11 @@ import pl.herfor.android.interfaces.ContextRepository
 import pl.herfor.android.interfaces.MarkerContract
 import pl.herfor.android.objects.*
 import pl.herfor.android.services.ActivityRecognitionService
-import pl.herfor.android.utils.*
+import pl.herfor.android.utils.Constants
 import pl.herfor.android.utils.Constants.Companion.NOTIFICATION_CHANNEL_ID
+import pl.herfor.android.utils.isVisible
+import pl.herfor.android.utils.toLatLng
+import pl.herfor.android.utils.toPoint
 import pl.herfor.android.viewmodels.MarkerViewModel
 import kotlin.concurrent.thread
 
@@ -64,12 +65,6 @@ class MarkerViewPresenter(
             context.getLifecycleOwner(),
             Observer { status -> markerFromNotificationObserver(status) }
         )
-
-        initializeSeverityTypes()
-        initializeAccidentTypes()
-
-        view.setSeverityTypeFilters(model.visibleSeverities)
-        view.setAccidentTypeFilters(model.visibleAccidentTypes)
 
         createNotificationChannel()
         FirebaseMessaging.getInstance().subscribeToTopic("marker-new")
@@ -112,7 +107,7 @@ class MarkerViewPresenter(
             context.getCurrentLocation().addOnSuccessListener { location: Location? ->
                 if (location != null) {
                     val marker = MarkerAddRequest(location.toPoint(), markerProperties)
-                    model.addMarker(marker)
+                    model.submitMarker(marker)
                 } else {
                     view.showSubmitMarkerFailure()
                 }
@@ -121,13 +116,33 @@ class MarkerViewPresenter(
                     view.showSubmitMarkerFailure()
                 }
         } else {
-            askForLocationPermission()
+            seekPermissions(true)
         }
     }
 
-    override fun loadVisibleMarkers(northEast: Point, southWest: Point) {
-        val request = MarkersLookupRequest(northEast, southWest)
-        model.loadAllVisibleMarkers(request)
+    override fun loadMarkersToMap(northEast: Point, southWest: Point) {
+        val currentMarkers = model.markerDao.getFromLocation(
+            northEast.longitude, southWest.longitude,
+            northEast.latitude, southWest.latitude
+        )
+        currentMarkers.observe(context.getLifecycleOwner(), Observer {
+            if (it.isEmpty()) {
+                val request = MarkersLookupRequest(
+                    northEast,
+                    southWest
+                )
+                model.loadVisibleMarkersChangedSince(request)
+            } else {
+                val earliestModificationDate =
+                    it.maxBy { marker -> marker.properties.localModificationDate }!!
+                val request = MarkersLookupRequest(
+                    northEast,
+                    southWest,
+                    earliestModificationDate.properties.localModificationDate
+                )
+                model.loadVisibleMarkersChangedSince(request)
+            }
+        })
     }
 
     override fun handleLocationBeingEnabled() {
@@ -145,16 +160,19 @@ class MarkerViewPresenter(
 
     @SuppressLint("MissingPermission")
     override fun showCurrentLocation() {
-        showCurrentLocation(animate = false)
+        this.showCurrentLocation(animate = false)
     }
 
     override fun displayMarkerAdd() {
-        zoomToCurrentLocation()
+        this.zoomToCurrentLocation()
         view.showAddSheet()
     }
 
-    override fun askForLocationPermission() {
-        view.getPermissionForLocation()
+    override fun seekPermissions(checkLocation: Boolean) {
+        this.checkForPlayServices()
+        if (checkLocation) {
+            view.getPermissionForLocation()
+        }
     }
 
     @SuppressLint("MissingPermission")
@@ -180,7 +198,7 @@ class MarkerViewPresenter(
         }
     }
 
-    override fun checkForPlayServices() {
+    private fun checkForPlayServices() {
         val playServicesCode =
             GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(context.getContext())
         if (playServicesCode != ConnectionResult.SUCCESS) {
@@ -189,12 +207,12 @@ class MarkerViewPresenter(
         }
     }
 
-    override fun toggleSeverityType(severityType: SeverityType) {
-        model.severityFilterChanged.value = severityType
+    override fun toggleSeverityType(severity: Severity) {
+        model.severityFilterChanged.value = severity
     }
 
-    override fun toggleAccidentType(accidentType: AccidentType) {
-        model.accidentFilterChanged.value = accidentType
+    override fun toggleAccidentType(accident: Accident) {
+        model.accidentFilterChanged.value = accident
     }
 
     override fun displayMarkerFromNotifications(id: String?) {
@@ -237,14 +255,14 @@ class MarkerViewPresenter(
                 }
             }
         } else {
-            askForLocationPermission()
+            seekPermissions(true)
         }
     }
 
     private fun handleLocationPermissionChange(permissionEnabled: Boolean) {
         val buttonMode =
             if (permissionEnabled) RightButtonMode.ADD_MARKER else RightButtonMode.DISABLED
-        model.locationEnabled = permissionEnabled
+        //TODO: replace with LiveData + observer in MapsActivity
         view.setLocationStateForMap(permissionEnabled)
         view.setRightButton(buttonMode, false)
         if (permissionEnabled) {
@@ -253,21 +271,6 @@ class MarkerViewPresenter(
     }
 
     private fun createActivityRequest() {
-        val transitions = listOf<ActivityTransition>(
-            ActivityTransition.Builder().setActivityType(DetectedActivity.ON_FOOT)
-                .setActivityTransition(ActivityTransition.ACTIVITY_TRANSITION_ENTER)
-                .build(),
-            ActivityTransition.Builder().setActivityType(DetectedActivity.ON_BICYCLE)
-                .setActivityTransition(ActivityTransition.ACTIVITY_TRANSITION_ENTER)
-                .build(),
-            ActivityTransition.Builder().setActivityType(DetectedActivity.IN_VEHICLE)
-                .setActivityTransition(ActivityTransition.ACTIVITY_TRANSITION_ENTER)
-                .build(),
-            ActivityTransition.Builder().setActivityType(DetectedActivity.STILL)
-                .setActivityTransition(ActivityTransition.ACTIVITY_TRANSITION_ENTER)
-                .build()
-        )
-
         val pendingIntent = PendingIntent.getService(
             context.getContext(),
             0,
@@ -276,27 +279,14 @@ class MarkerViewPresenter(
         )
 
         ActivityRecognition.getClient(context.getContext())
-            .requestActivityTransitionUpdates(ActivityTransitionRequest(transitions), pendingIntent)
-    }
-
-    private fun initializeSeverityTypes() {
-        val sharedPreferences = context.getSharedPreferences("preferences", Context.MODE_PRIVATE)
-        val severities = sharedPreferences.getSeverities()
-
-        model.visibleSeverities.clear()
-        model.visibleSeverities.addAll(severities)
-    }
-
-    private fun initializeAccidentTypes() {
-        val sharedPreferences = context.getSharedPreferences("preferences", Context.MODE_PRIVATE)
-        val accidentTypes = sharedPreferences.getAccidentTypes()
-
-        model.visibleAccidentTypes.clear()
-        model.visibleAccidentTypes.addAll(accidentTypes)
+            .requestActivityTransitionUpdates(
+                ActivityTransitionRequest(Constants.TRANSITIONS),
+                pendingIntent
+            )
     }
 
     //OBSERVERS
-
+    //TODO: move to separate class, aka ObserverCollection
     private fun markerFromNotificationObserver(status: String?) {
         when (status) {
             null -> {
@@ -312,7 +302,7 @@ class MarkerViewPresenter(
 
     private fun addMarkerToMapObserver(marker: MarkerData) {
         if (marker.isVisible(model.visibleSeverities, model.visibleAccidentTypes)) {
-            val mapsMarker = view.addMarker(marker)
+            val mapsMarker = view.addMarkerToMap(marker)
             mapsMarker.tag = marker
             model.mapMarkers[marker.id] = mapsMarker
         }
@@ -357,34 +347,34 @@ class MarkerViewPresenter(
         }
     }
 
-    private fun severityFilterObserver(severityType: SeverityType) {
+    private fun severityFilterObserver(severity: Severity) {
         val sharedPreferences = context.getSharedPreferences("preferences", Context.MODE_PRIVATE)
 
-        when (model.visibleSeverities.contains(severityType)) {
+        when (model.visibleSeverities.contains(severity)) {
             true -> {
-                sharedPreferences.edit().putBoolean("severityType.${severityType.name}", false)
+                sharedPreferences.edit().putBoolean("severity.${severity.name}", false)
                     .apply()
-                model.visibleSeverities.remove(severityType)
-                model.markerDatabase.getBySeverity(severityType)
+                model.visibleSeverities.remove(severity)
+                model.markerDao.getBySeverity(severity)
                     .observe(context.getLifecycleOwner(),
                         Observer { markers ->
                             markers.forEach { marker ->
                                 model.removeMarkerFromMap.value = marker.id
-                                model.markerDatabase.getBySeverity(severityType)
+                                model.markerDao.getBySeverity(severity)
                                     .removeObservers(context.getLifecycleOwner())
                             }
                         })
             }
             false -> {
-                sharedPreferences.edit().putBoolean("severityType.${severityType.name}", true)
+                sharedPreferences.edit().putBoolean("severity.${severity.name}", true)
                     .apply()
-                model.visibleSeverities.add(severityType)
-                model.markerDatabase.getBySeverity(severityType)
+                model.visibleSeverities.add(severity)
+                model.markerDao.getBySeverity(severity)
                     .observe(context.getLifecycleOwner(),
                         Observer { markers ->
                             markers.forEach { marker ->
                                 model.addMarkerToMap.value = marker
-                                model.markerDatabase.getBySeverity(severityType)
+                                model.markerDao.getBySeverity(severity)
                                     .removeObservers(context.getLifecycleOwner())
                             }
                         })
@@ -392,34 +382,34 @@ class MarkerViewPresenter(
         }
     }
 
-    private fun accidentFilterObserver(accidentType: AccidentType) {
+    private fun accidentFilterObserver(accident: Accident) {
         val sharedPreferences = context.getSharedPreferences("preferences", Context.MODE_PRIVATE)
 
-        when (model.visibleAccidentTypes.contains(accidentType)) {
+        when (model.visibleAccidentTypes.contains(accident)) {
             true -> {
-                sharedPreferences.edit().putBoolean("accidentType.${accidentType.name}", false)
+                sharedPreferences.edit().putBoolean("accident.${accident.name}", false)
                     .apply()
-                model.visibleAccidentTypes.remove(accidentType)
-                model.markerDatabase.getByAccidentType(accidentType)
+                model.visibleAccidentTypes.remove(accident)
+                model.markerDao.getByAccidentType(accident)
                     .observe(context.getLifecycleOwner(),
                         Observer { markers ->
                             markers.forEach { marker ->
                                 model.removeMarkerFromMap.value = marker.id
-                                model.markerDatabase.getByAccidentType(accidentType)
+                                model.markerDao.getByAccidentType(accident)
                                     .removeObservers(context.getLifecycleOwner())
                             }
                         })
             }
             false -> {
-                sharedPreferences.edit().putBoolean("accidentType.${accidentType.name}", true)
+                sharedPreferences.edit().putBoolean("accident.${accident.name}", true)
                     .apply()
-                model.visibleAccidentTypes.add(accidentType)
-                model.markerDatabase.getByAccidentType(accidentType)
+                model.visibleAccidentTypes.add(accident)
+                model.markerDao.getByAccidentType(accident)
                     .observe(context.getLifecycleOwner(),
                         Observer { markers ->
                             markers.forEach { marker ->
                                 model.addMarkerToMap.value = marker
-                                model.markerDatabase.getByAccidentType(accidentType)
+                                model.markerDao.getByAccidentType(accident)
                                     .removeObservers(context.getLifecycleOwner())
                             }
                         })

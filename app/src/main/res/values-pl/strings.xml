@@ -3,16 +3,14 @@
     <string name="geocoder_error">Błąd połączenia</string>
     <string name="connection_loss_explanation">Utraciliśmy dostęp do internetu.</string>
     <string name="geocoder_unknown">Nieznana lokalizacja</string>
-    <string name="location_explanation">"Potrzebujemy dostępu do lokalizacji, abyś mógł zgłaszać wypadki i widzieć swoją
-        lokalizację."
-    </string>
+    <string name="location_explanation">Potrzebujemy dostępu do lokalizacji, abyś mógł zgłaszać utrudnienia i widzieć swoją lokalizację.</string>
     <string name="marker_submit_error">Nie udało się wysłać zgłoszenia. Spróbuj ponownie</string>
     <string name="reload">Załaduj ponownie</string>
     <string name="settings_button">Ustawienia</string>
     <string name="time_details_description">Dodano %s</string>
     <string name="filter_sheet_title">Filtruj na mapie i w powiadomieniach</string>
     <string name="channel_name">Powiadomienia o zdarzeniach</string>
-    <string name="channel_description">Otrzymuj powaidomienia o zdarzeniach wokół ciebie.</string>
+    <string name="channel_description">Otrzymuj powaidomienia o utrudnieniach wokół ciebie.</string>
     <string name="green">Zielony</string>
     <string name="red">Czerwony</string>
     <string name="yellow">Żółty</string>
@@ -29,4 +27,6 @@
     <string name="add_sheet_title">Dodaj zgłoszenie</string>
     <string name="details_sheet_clock_content_description">Czas zgłoszenia</string>
     <string name="location_unavailable_error">Twoja lokalizacja jest obecnie niedostępna.</string>
+    <string name="irrelevant_button_string">Ważne</string>
+    <string name="relevant_button_string">Nieważne</string>
 </resources>

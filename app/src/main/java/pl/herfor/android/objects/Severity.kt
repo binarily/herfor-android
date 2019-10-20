@@ -5,7 +5,7 @@ import android.content.res.ColorStateList
 import androidx.core.content.ContextCompat
 import pl.herfor.android.R
 
-enum class SeverityType {
+enum class Severity {
     GREEN, YELLOW, RED, NONE;
 
     fun toHumanReadableString(context: Context): String {

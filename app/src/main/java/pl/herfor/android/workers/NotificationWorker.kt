@@ -16,7 +16,7 @@ import pl.herfor.android.activities.MapsActivity
 import pl.herfor.android.contexts.MarkerContext
 import pl.herfor.android.objects.MarkerData
 import pl.herfor.android.objects.NotificationStatus
-import pl.herfor.android.objects.SeverityType
+import pl.herfor.android.objects.Severity
 import pl.herfor.android.services.NotificationDeletedService
 import pl.herfor.android.utils.*
 import kotlin.math.roundToLong
@@ -53,18 +53,8 @@ class NotificationWorker(context: Context, workerParams: WorkerParameters) :
                     MarkerData::class.java
                 )
 
-                val severities = sharedPreferences.getSeverities()
-                val accidentTypes = sharedPreferences.getAccidentTypes()
-                if (!marker.isVisible(severities, accidentTypes)) {
-                    return@coroutineScope Result.success()
-                }
-
                 val distance = calculateDistance(marker, markerContext)
-
-                val currentActivity =
-                    sharedPreferences.getInt("currentActivity", DetectedActivity.STILL)
-
-                if (distance == -1L || distance > currentActivity.toDetectedActivityDistance()) {
+                if (!shouldShowNotification(marker)) {
                     return@coroutineScope Result.success()
                 }
 
@@ -85,8 +75,9 @@ class NotificationWorker(context: Context, workerParams: WorkerParameters) :
                 if (id == null || newSeverity == null) {
                     return@coroutineScope Result.failure()
                 }
+
                 markerContext.getDatabase().markerDao()
-                    .updateSeverity(SeverityType.valueOf(newSeverity), id)
+                    .updateSeverity(Severity.valueOf(newSeverity), id)
                 val marker = markerContext.getDatabase().markerDao().getOne(id).value
                     ?: return@coroutineScope Result.failure()
                 val distance = calculateDistance(marker, markerContext)
@@ -94,9 +85,7 @@ class NotificationWorker(context: Context, workerParams: WorkerParameters) :
                 when (marker.properties.notificationStatus) {
                     NotificationStatus.Dismissed -> return@coroutineScope Result.success()
                     NotificationStatus.NotShown -> {
-                        val currentActivity =
-                            sharedPreferences.getInt("currentActivity", DetectedActivity.STILL)
-                        if (distance == -1L || distance > currentActivity.toDetectedActivityDistance()) {
+                        if (!shouldShowNotification(marker)) {
                             return@coroutineScope Result.success()
                         }
                     }
@@ -107,10 +96,6 @@ class NotificationWorker(context: Context, workerParams: WorkerParameters) :
                         marker.location.latitude,
                         marker.location.longitude
                     )
-                //TODO: recreate notification, cancel old one and replace silently with new one
-                //TODO: if at all that would be necessary beyond just changing things in database and recalculating
-                //TODO: chances of notification appearing (if it didn't already)
-                //TODO: do not create notification if it doesn't exist
                 createNotification(location, distance, marker, pendingIntent)
             }
             Constants.ACTION_REMOVE -> {
@@ -129,6 +114,24 @@ class NotificationWorker(context: Context, workerParams: WorkerParameters) :
 
         // Indicate whether the task finished successfully with the Result
         return@coroutineScope Result.success()
+    }
+
+    private fun shouldShowNotification(marker: MarkerData): Boolean {
+        val severities = sharedPreferences.getSeverities()
+        val accidentTypes = sharedPreferences.getAccidentTypes()
+        if (!marker.isVisible(severities, accidentTypes)) {
+            return false
+        }
+
+        val distance = calculateDistance(marker, markerContext)
+
+        val currentActivity =
+            sharedPreferences.getInt("currentActivity", DetectedActivity.STILL)
+
+        if (distance == -1L || distance > currentActivity.toDetectedActivityDistance()) {
+            return false
+        }
+        return true
     }
 
     private fun calculateDistance(
@@ -161,7 +164,7 @@ class NotificationWorker(context: Context, workerParams: WorkerParameters) :
                         distance
                     )
                 )
-                .setWhen(marker.properties.creationDate.time)
+                .setWhen(marker.properties.creationDate.toEpochSecond())
                 .setSmallIcon(R.drawable.ic_notification)
                 .setLargeIcon(
                     BitmapFactory.decodeResource(
@@ -169,15 +172,6 @@ class NotificationWorker(context: Context, workerParams: WorkerParameters) :
                         marker.properties.getGlyph()
                     )
                 )
-                /*.setStyle(
-                    NotificationCompat.BigPictureStyle()
-                        .bigPicture(
-                            BitmapFactory.decodeResource(
-                                applicationContext.resources,
-                                R.drawable.common_google_signin_btn_icon_dark
-                            )
-                        ) //TODO: mapka
-                )*/
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true)

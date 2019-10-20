@@ -20,6 +20,7 @@ import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.chip.Chip
 import com.google.android.material.snackbar.Snackbar
+import com.jakewharton.threetenabp.AndroidThreeTen
 import com.karumi.dexter.Dexter
 import com.karumi.dexter.PermissionToken
 import com.karumi.dexter.listener.PermissionDeniedResponse
@@ -44,28 +45,31 @@ import pl.herfor.android.utils.Constants.Companion.ZOOM_LEVEL
 import pl.herfor.android.utils.toPoint
 import pl.herfor.android.utils.toRelativeDateString
 import pl.herfor.android.viewmodels.MarkerViewModel
-import kotlin.concurrent.thread
 
 
-class MapsActivity : AppCompatActivity(), MarkerContract.View, FilterSheetFragmentInterface {
+class MapsActivity : AppCompatActivity(), MarkerContract.View {
     private lateinit var mMap: GoogleMap
     private lateinit var activityView: View
     private lateinit var detailsSheet: BottomSheetBehavior<ConstraintLayout>
     private lateinit var addSheet: BottomSheetBehavior<ConstraintLayout>
     private lateinit var snackbar: Snackbar
     private lateinit var presenter: MarkerContract.Presenter
+    private lateinit var model: MarkerViewModel
     private lateinit var filterSheet: FilterSheetFragment
-
-    private var notificationMarkerReady: Boolean = false
-
-    private var buttonState = RightButtonMode.DISABLED
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        AndroidThreeTen.init(this)
+
         setContentView(R.layout.activity_main)
         activityView = findViewById(R.id.activity_main)
 
-        presenter = MarkerViewPresenter(ViewModelProvider(this)[MarkerViewModel::class.java], this, MarkerContext(this))
+        model = ViewModelProvider(this)[MarkerViewModel::class.java]
+        presenter = MarkerViewPresenter(
+            model,
+            this,
+            MarkerContext(this)
+        )
 
         detailsSheet = BottomSheetBehavior.from(details_sheet)
         detailsSheet.state = BottomSheetBehavior.STATE_HIDDEN
@@ -74,9 +78,9 @@ class MapsActivity : AppCompatActivity(), MarkerContract.View, FilterSheetFragme
         addSheet.state = BottomSheetBehavior.STATE_HIDDEN
 
         submitMarkerButton.setOnClickListener { prepareMarkerForSubmission() }
-        addButton.setOnClickListener { onRightButton() }
-        filterButton.setOnClickListener { showFilterSheet() }
-        addChipGroup.setOnCheckedChangeListener { _, checkedId -> submitMarkerButton.isEnabled = checkedId != -1 }
+        addChipGroup.setOnCheckedChangeListener { _, checkedId ->
+            submitMarkerButton.isEnabled = checkedId != -1
+        }
 
         snackbar = Snackbar.make(
             activityView,
@@ -84,11 +88,7 @@ class MapsActivity : AppCompatActivity(), MarkerContract.View, FilterSheetFragme
             Snackbar.LENGTH_INDEFINITE
         )
 
-        filterSheet = FilterSheetFragment()
-
-        if (intent.extras != null && intent.extras.containsKey(Constants.INTENT_MARKER_ID_KEY)) {
-            notificationMarkerReady = true
-        }
+        filterSheet = FilterSheetFragment(presenter, model)
 
         val mapFragment = supportFragmentManager
             .findFragmentById(R.id.map) as SupportMapFragment
@@ -98,7 +98,8 @@ class MapsActivity : AppCompatActivity(), MarkerContract.View, FilterSheetFragme
 
     private fun prepareMarkerForSubmission() {
         submitMarkerButton.isEnabled = false
-        val markerProperties = MarkerProperties(AccidentType.values()[(addChipGroup.checkedChipId - 1) % 6])
+        val markerProperties =
+            MarkerProperties(Accident.values()[(addChipGroup.checkedChipId - 1) % 6])
         presenter.submitMarker(markerProperties)
     }
 
@@ -114,19 +115,17 @@ class MapsActivity : AppCompatActivity(), MarkerContract.View, FilterSheetFragme
             return@setOnMarkerClickListener true
         }
         mMap.setOnMapClickListener {
-            dismissSheet()
+            showSheet(SheetVisibility.NONE)
         }
         mMap.setOnMyLocationClickListener { presenter.displayMarkerAdd() }
         mMap.setOnCameraIdleListener(::handleIdleMap)
 
         presenter.start()
-        presenter.askForLocationPermission()
-        presenter.checkForPlayServices()
+        presenter.seekPermissions(true)
 
-        if (notificationMarkerReady) {
-            presenter.displayMarkerFromNotifications(intent?.extras?.getString(Constants.INTENT_MARKER_ID_KEY))
+        if (intent.extras != null && intent.extras.containsKey(Constants.INTENT_MARKER_ID_KEY)) {
             intent?.extras?.remove(Constants.INTENT_MARKER_ID_KEY)
-            notificationMarkerReady = false
+            presenter.displayMarkerFromNotifications(intent?.extras?.getString(Constants.INTENT_MARKER_ID_KEY))
         }
     }
 
@@ -147,20 +146,16 @@ class MapsActivity : AppCompatActivity(), MarkerContract.View, FilterSheetFragme
         }
     }
 
-    private fun onRightButton() {
-        when (buttonState) {
+    fun onRightButton(view: View) {
+        when (model.buttonState) {
             RightButtonMode.ADD_MARKER -> presenter.displayMarkerAdd()
             RightButtonMode.SHOW_LOCATION -> presenter.zoomToCurrentLocation()
-            RightButtonMode.DISABLED -> presenter.askForLocationPermission()
+            RightButtonMode.DISABLED -> presenter.seekPermissions(true)
         }
     }
 
-    override fun dismissSheet() {
-        showSheet(SheetVisibility.NONE)
-    }
-
     override fun setRightButton(rightButtonMode: RightButtonMode, transition: Boolean) {
-        buttonState = rightButtonMode
+        model.buttonState = rightButtonMode
         when (rightButtonMode) {
             RightButtonMode.ADD_MARKER -> {
                 addButton.alpha = 1f
@@ -168,7 +163,9 @@ class MapsActivity : AppCompatActivity(), MarkerContract.View, FilterSheetFragme
                     val animationDrawable = R.drawable.location_to_add
                     addButton.setImageDrawable(ContextCompat.getDrawable(this, animationDrawable))
                     (addButton.drawable as TransitionDrawable).isCrossFadeEnabled = true
-                    (addButton.drawable as TransitionDrawable).startTransition(BUTTON_ANIMATION_DURATION)
+                    (addButton.drawable as TransitionDrawable).startTransition(
+                        BUTTON_ANIMATION_DURATION
+                    )
                 }
             }
             RightButtonMode.SHOW_LOCATION -> {
@@ -177,7 +174,9 @@ class MapsActivity : AppCompatActivity(), MarkerContract.View, FilterSheetFragme
                     val animationDrawable = R.drawable.add_to_location
                     addButton.setImageDrawable(ContextCompat.getDrawable(this, animationDrawable))
                     (addButton.drawable as TransitionDrawable).isCrossFadeEnabled = true
-                    (addButton.drawable as TransitionDrawable).startTransition(BUTTON_ANIMATION_DURATION)
+                    (addButton.drawable as TransitionDrawable).startTransition(
+                        BUTTON_ANIMATION_DURATION
+                    )
                 }
             }
             RightButtonMode.DISABLED -> {
@@ -195,13 +194,12 @@ class MapsActivity : AppCompatActivity(), MarkerContract.View, FilterSheetFragme
         presenter.setRightButtonMode(mMap.projection.visibleRegion.latLngBounds)
     }
 
-    //TODO: replace with data binding
     override fun showDetailsSheet(marker: MarkerData) {
         runOnUiThread {
-            detailsTypeChip.text = marker.properties.accidentType.toHumanReadableString(this)
+            detailsTypeChip.text = marker.properties.accident.toHumanReadableString(this)
             detailsSeverityChip.text =
-                marker.properties.severityType.toHumanReadableString(this)
-            detailsSeverityChip.chipBackgroundColor = marker.properties.severityType.toColor(this)
+                marker.properties.severity.toHumanReadableString(this)
+            detailsSeverityChip.chipBackgroundColor = marker.properties.severity.toColor(this)
             detailsTimeTextView.text =
                 getString(R.string.time_details_description).toRelativeDateString(marker.properties.creationDate)
 
@@ -236,7 +234,10 @@ class MapsActivity : AppCompatActivity(), MarkerContract.View, FilterSheetFragme
                 presenter.handleLocationBeingDisabled()
             }
 
-            override fun onPermissionRationaleShouldBeShown(permission: PermissionRequest, token: PermissionToken) {
+            override fun onPermissionRationaleShouldBeShown(
+                permission: PermissionRequest,
+                token: PermissionToken
+            ) {
                 presenter.handleLocationBeingDisabled()
             }
         }
@@ -248,14 +249,8 @@ class MapsActivity : AppCompatActivity(), MarkerContract.View, FilterSheetFragme
 
     private fun handleIdleMap() {
         val bounds = mMap.projection.visibleRegion.latLngBounds
-        thread {
-            presenter.setRightButtonMode(bounds)
-            presenter.loadVisibleMarkers(bounds.northeast.toPoint(), bounds.southwest.toPoint())
-        }
-    }
-
-    override fun changeRightButtonState(rightButtonMode: RightButtonMode, transition: Boolean) {
-        setRightButton(rightButtonMode, transition)
+        presenter.setRightButtonMode(bounds)
+        presenter.loadMarkersToMap(bounds.northeast.toPoint(), bounds.southwest.toPoint())
     }
 
     override fun showSubmitMarkerFailure() {
@@ -282,7 +277,7 @@ class MapsActivity : AppCompatActivity(), MarkerContract.View, FilterSheetFragme
         showSheet(SheetVisibility.NONE)
     }
 
-    override fun addMarker(marker: MarkerData): Marker {
+    override fun addMarkerToMap(marker: MarkerData): Marker {
         val mapsMarker = mMap.addMarker(
             MarkerOptions()
                 .position(marker.location.toLatLng())
@@ -293,14 +288,10 @@ class MapsActivity : AppCompatActivity(), MarkerContract.View, FilterSheetFragme
         return mapsMarker
     }
 
-    override fun removeMarker(marker: Marker) {
-        marker.remove()
-    }
-
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putInt(CHIP_ID_KEY, addChipGroup.checkedChipId)
-        outState.putString(RIGHT_BUTTON_STATE_KEY, buttonState.toString())
+        outState.putString(RIGHT_BUTTON_STATE_KEY, model.buttonState.toString())
     }
 
     override fun onRestoreInstanceState(savedInstanceState: Bundle?) {
@@ -316,7 +307,7 @@ class MapsActivity : AppCompatActivity(), MarkerContract.View, FilterSheetFragme
 
     override fun onResume() {
         super.onResume()
-        presenter.checkForPlayServices()
+        presenter.seekPermissions(false)
     }
 
     override fun onDestroy() {
@@ -324,27 +315,7 @@ class MapsActivity : AppCompatActivity(), MarkerContract.View, FilterSheetFragme
         presenter.stop()
     }
 
-    override fun toggleSeverityType(severityType: SeverityType) {
-        presenter.toggleSeverityType(severityType)
-    }
-
-    override fun toggleAccidentType(accidentType: AccidentType) {
-        presenter.toggleAccidentType(accidentType)
-    }
-
-    override fun setSeverityTypeFilters(severityTypes: List<SeverityType>) {
-        filterSheet.setSeverityTypes(severityTypes)
-    }
-
-    override fun setAccidentTypeFilters(accidentTypes: List<AccidentType>) {
-        filterSheet.setAccidentTypes(accidentTypes)
-    }
-
-    override fun removeAllMarkers() {
-        mMap.clear()
-    }
-
-    private fun showFilterSheet() {
+    fun showFilterSheet(view: View) {
         filterSheet.show(supportFragmentManager, filterSheet.tag)
     }
 
