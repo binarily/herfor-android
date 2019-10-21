@@ -26,9 +26,9 @@ interface MarkerContract {
         fun start()
         fun stop()
 
-        fun displayMarkerDetails(marker: Marker)
         fun displayMarkerAdd()
         fun submitMarker(markerProperties: MarkerProperties)
+        fun submitGrade(grade: Grade)
         fun loadMarkersToMap(northEast: Point, southWest: Point)
         fun handleLocationBeingEnabled()
         fun handleLocationBeingDisabled()
@@ -37,9 +37,6 @@ interface MarkerContract {
         fun setRightButtonMode(bounds: LatLngBounds)
 
         fun seekPermissions(checkLocation: Boolean)
-
-        fun toggleSeverityType(severity: Severity)
-        fun toggleAccidentType(accident: Accident)
 
         fun displayMarkerFromNotifications(id: String?)
     }

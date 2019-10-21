@@ -20,12 +20,12 @@ import com.google.android.gms.location.ActivityRecognition
 import com.google.android.gms.location.ActivityTransitionRequest
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.LatLngBounds
-import com.google.android.gms.maps.model.Marker
 import com.google.firebase.messaging.FirebaseMessaging
 import pl.herfor.android.R
 import pl.herfor.android.interfaces.ContextRepository
 import pl.herfor.android.interfaces.MarkerContract
 import pl.herfor.android.objects.*
+import pl.herfor.android.retrofits.RetrofitRepository
 import pl.herfor.android.services.ActivityRecognitionService
 import pl.herfor.android.utils.Constants
 import pl.herfor.android.utils.Constants.Companion.NOTIFICATION_CHANNEL_ID
@@ -33,13 +33,11 @@ import pl.herfor.android.utils.isVisible
 import pl.herfor.android.utils.toLatLng
 import pl.herfor.android.utils.toPoint
 import pl.herfor.android.viewmodels.MarkerViewModel
-import kotlin.concurrent.thread
 
 class MarkerViewPresenter(
     private val model: MarkerViewModel, private val view: MarkerContract.View,
-    private val context: ContextRepository
+    private val context: ContextRepository, private val repository: RetrofitRepository
 ) : MarkerContract.Presenter {
-
     override fun start() {
         if (model.started) {
             return
@@ -87,27 +85,13 @@ class MarkerViewPresenter(
         model.started = false
     }
 
-    override fun displayMarkerDetails(marker: Marker) {
-        view.moveCamera(marker.position, animate = true)
-        view.showDetailsSheet(marker.tag as MarkerData)
-        val position = marker.position
-        thread {
-            view.showLocationOnDetailsSheet(
-                context.getLocationName(
-                    position.latitude,
-                    position.longitude
-                )
-            )
-        }
-    }
-
     @SuppressLint("MissingPermission")
     override fun submitMarker(markerProperties: MarkerProperties) {
         if (locationPermissionAvailable()) {
             context.getCurrentLocation().addOnSuccessListener { location: Location? ->
                 if (location != null) {
                     val marker = MarkerAddRequest(location.toPoint(), markerProperties)
-                    model.submitMarker(marker)
+                    repository.submitMarker(marker)
                 } else {
                     view.showSubmitMarkerFailure()
                 }
@@ -115,6 +99,18 @@ class MarkerViewPresenter(
                 .addOnFailureListener {
                     view.showSubmitMarkerFailure()
                 }
+        } else {
+            seekPermissions(true)
+        }
+    }
+
+    override fun submitGrade(grade: Grade) {
+        if (locationPermissionAvailable()) {
+            context.getCurrentLocation().addOnSuccessListener {
+                val request =
+                    MarkerGradeRequest(model.currentlyShownMarker.value!!.id, it.toPoint(), grade)
+                repository.submitGrade(request)
+            }
         } else {
             seekPermissions(true)
         }
@@ -131,7 +127,7 @@ class MarkerViewPresenter(
                     northEast,
                     southWest
                 )
-                model.loadVisibleMarkersChangedSince(request)
+                repository.loadVisibleMarkersChangedSince(request)
             } else {
                 val earliestModificationDate =
                     it.maxBy { marker -> marker.properties.localModificationDate }!!
@@ -140,22 +136,22 @@ class MarkerViewPresenter(
                     southWest,
                     earliestModificationDate.properties.localModificationDate
                 )
-                model.loadVisibleMarkersChangedSince(request)
+                repository.loadVisibleMarkersChangedSince(request)
             }
         })
     }
 
     override fun handleLocationBeingEnabled() {
-        handleLocationPermissionChange(true)
+        this.handleLocationPermissionChange(true)
     }
 
     override fun handleLocationBeingDisabled() {
-        handleLocationPermissionChange(false)
+        this.handleLocationPermissionChange(false)
     }
 
     @SuppressLint("MissingPermission")
     override fun zoomToCurrentLocation() {
-        showCurrentLocation(animate = true)
+        this.showCurrentLocation(animate = true)
     }
 
     @SuppressLint("MissingPermission")
@@ -198,26 +194,18 @@ class MarkerViewPresenter(
         }
     }
 
+    override fun displayMarkerFromNotifications(id: String?) {
+        if (id != null) {
+            repository.loadSingleMarkerForNotification(id)
+        }
+    }
+
     private fun checkForPlayServices() {
         val playServicesCode =
             GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(context.getContext())
         if (playServicesCode != ConnectionResult.SUCCESS) {
             GoogleApiAvailability.getInstance()
                 .makeGooglePlayServicesAvailable(context.getActivity())
-        }
-    }
-
-    override fun toggleSeverityType(severity: Severity) {
-        model.severityFilterChanged.value = severity
-    }
-
-    override fun toggleAccidentType(accident: Accident) {
-        model.accidentFilterChanged.value = accident
-    }
-
-    override fun displayMarkerFromNotifications(id: String?) {
-        if (id != null) {
-            model.loadSingleMarkerForNotification(id)
         }
     }
 
@@ -294,7 +282,7 @@ class MarkerViewPresenter(
             }
             else -> {
                 if (model.mapMarkers[status] != null) {
-                    displayMarkerDetails(model.mapMarkers[status]!!)
+                    model.currentlyShownMarker.value = model.mapMarkers[status]?.tag as MarkerData
                 }
             }
         }

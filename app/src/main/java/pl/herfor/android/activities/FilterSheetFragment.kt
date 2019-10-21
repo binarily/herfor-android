@@ -8,13 +8,11 @@ import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.google.android.material.chip.Chip
 import kotlinx.android.synthetic.main.sheet_filter.*
 import pl.herfor.android.R
-import pl.herfor.android.interfaces.MarkerContract
 import pl.herfor.android.objects.Accident
 import pl.herfor.android.objects.Severity
 import pl.herfor.android.viewmodels.MarkerViewModel
 
 class FilterSheetFragment(
-    private val presenter: MarkerContract.Presenter,
     private val model: MarkerViewModel
 ) : BottomSheetDialogFragment() {
     override fun onCreateView(
@@ -37,17 +35,13 @@ class FilterSheetFragment(
 
         for (i in 0 until filterSeverityChipGroup.childCount) {
             (filterSeverityChipGroup.getChildAt(i) as Chip).setOnCheckedChangeListener { compoundButton, b ->
-                presenter.toggleSeverityType(
-                    Severity.values()[i]
-                )
+                model.severityFilterChanged.value = Severity.values()[i]
             }
         }
 
         for (i in 0 until filterTypeChipGroup.childCount) {
             (filterTypeChipGroup.getChildAt(i) as Chip).setOnCheckedChangeListener { compoundButton, b ->
-                presenter.toggleAccidentType(
-                    Accident.values()[i]
-                )
+                model.accidentFilterChanged.value = Accident.values()[i]
             }
         }
     }

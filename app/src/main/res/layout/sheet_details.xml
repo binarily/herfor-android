@@ -81,6 +81,7 @@
 
     <Button
             android:id="@+id/relevantGradeButton"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton.Icon"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="16dp"
@@ -89,10 +90,12 @@
             app:icon="@drawable/ic_relevant_check"
             app:layout_constraintEnd_toStartOf="@+id/irrelevantGradeButton"
             app:layout_constraintStart_toStartOf="parent"
+            android:onClick="onRelevantButton"
             app:layout_constraintTop_toBottomOf="@+id/detailsTimeTextView" />
 
     <Button
             android:id="@+id/irrelevantGradeButton"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton.Icon"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
@@ -100,5 +103,6 @@
             app:icon="@drawable/ic_irrelevant_cross"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toEndOf="@+id/relevantGradeButton"
+            android:onClick="onIrrelevantButton"
             app:layout_constraintTop_toBottomOf="@+id/detailsTimeTextView" />
 </androidx.constraintlayout.widget.ConstraintLayout>
