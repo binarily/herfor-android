@@ -4,6 +4,7 @@ import com.google.android.gms.location.ActivityTransition
 import com.google.android.gms.location.DetectedActivity
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
+import org.aaronhe.threetengson.ThreeTenGsonAdapter
 
 class Constants {
     companion object {
@@ -40,9 +41,6 @@ class Constants {
                 .build()
         )
 
-
-        val GSON: Gson = GsonBuilder()
-            .create()
-
+        val GSON: Gson = ThreeTenGsonAdapter.registerOffsetDateTime(GsonBuilder()).create()
     }
 }

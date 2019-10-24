@@ -8,8 +8,8 @@ import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.google.android.material.chip.Chip
 import kotlinx.android.synthetic.main.sheet_filter.*
 import pl.herfor.android.R
-import pl.herfor.android.objects.Accident
-import pl.herfor.android.objects.Severity
+import pl.herfor.android.objects.enums.Accident
+import pl.herfor.android.objects.enums.Severity
 import pl.herfor.android.viewmodels.MarkerViewModel
 
 class FilterSheetFragment(
@@ -26,10 +26,10 @@ class FilterSheetFragment(
     override fun onStart() {
         super.onStart()
 
-        for (severityType in model.visibleSeverities) {
+        for (severityType in model.visibleSeverities.value!!) {
             (filterSeverityChipGroup.getChildAt(severityType.ordinal) as Chip).isChecked = true
         }
-        for (accidentType in model.visibleAccidentTypes) {
+        for (accidentType in model.visibleAccidentTypes.value!!) {
             (filterTypeChipGroup.getChildAt(accidentType.ordinal) as Chip).isChecked = true
         }
 

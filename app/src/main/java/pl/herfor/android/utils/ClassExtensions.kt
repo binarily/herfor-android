@@ -3,13 +3,15 @@ package pl.herfor.android.utils
 import android.content.SharedPreferences
 import android.location.Location
 import android.text.format.DateUtils
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MediatorLiveData
 import com.google.android.gms.location.DetectedActivity
 import com.google.android.gms.maps.model.LatLng
 import org.threeten.bp.OffsetDateTime
-import pl.herfor.android.objects.Accident
 import pl.herfor.android.objects.MarkerData
 import pl.herfor.android.objects.Point
-import pl.herfor.android.objects.Severity
+import pl.herfor.android.objects.enums.Accident
+import pl.herfor.android.objects.enums.Severity
 
 internal fun LatLng?.toPoint(): Point {
     return Point(this?.latitude ?: 0.0, this?.longitude ?: 0.0)
@@ -103,5 +105,13 @@ internal fun Int.toDetectedActivityDistance(): Long {
         else -> {
             return 100
         }
+    }
+}
+
+internal class DoubleTrigger<A, B>(a: LiveData<A>, b: LiveData<B>) :
+    MediatorLiveData<Pair<A?, B?>>() {
+    init {
+        addSource(a) { value = it to b.value }
+        addSource(b) { value = a.value to it }
     }
 }

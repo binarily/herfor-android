@@ -2,13 +2,16 @@ package pl.herfor.android.objects
 
 import androidx.room.*
 import org.threeten.bp.OffsetDateTime
+import pl.herfor.android.objects.enums.Grade
 
 @Entity(
     foreignKeys = [ForeignKey(
         entity = MarkerData::class,
         parentColumns = arrayOf("id"),
         childColumns = arrayOf("marker")
-    )], tableName = "grades"
+    )],
+    indices = [Index("id"), Index("marker")],
+    tableName = "grades"
 )
 data class MarkerGrade(
     @PrimaryKey val id: String,

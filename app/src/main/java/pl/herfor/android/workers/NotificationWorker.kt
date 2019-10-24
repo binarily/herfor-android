@@ -10,39 +10,40 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.google.android.gms.location.DetectedActivity
+import com.google.android.gms.tasks.Tasks
 import kotlinx.coroutines.coroutineScope
 import pl.herfor.android.R
 import pl.herfor.android.activities.MapsActivity
 import pl.herfor.android.contexts.MarkerContext
 import pl.herfor.android.objects.MarkerData
 import pl.herfor.android.objects.NotificationStatus
-import pl.herfor.android.objects.Severity
+import pl.herfor.android.objects.enums.Severity
 import pl.herfor.android.services.NotificationDeletedService
 import pl.herfor.android.utils.*
+import java.util.concurrent.ExecutionException
 import kotlin.math.roundToLong
 import kotlin.random.Random
 
 
 class NotificationWorker(context: Context, workerParams: WorkerParameters) :
     CoroutineWorker(context, workerParams) {
-    private val intent = Intent(applicationContext, MapsActivity::class.java).apply {
-        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        putExtra(
-            Constants.INTENT_MARKER_ID_KEY,
-            inputData.getString(Constants.NOTIFICATION_MESSAGE_ID_KEY)
-        )
-    }
-    private val pendingIntent
+    private val markerContext = MarkerContext(applicationContext)
+    private val openAppIntent
             : PendingIntent =
         PendingIntent.getActivity(
-            applicationContext,
+            markerContext.getContext(),
             Random.nextInt(),
-            intent,
+            Intent(markerContext.getContext(), MapsActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                putExtra(
+                    Constants.INTENT_MARKER_ID_KEY,
+                    inputData.getString(Constants.NOTIFICATION_MESSAGE_ID_KEY)
+                )
+            },
             PendingIntent.FLAG_UPDATE_CURRENT
         )
     private val sharedPreferences =
-        applicationContext.getSharedPreferences("preferences", Context.MODE_PRIVATE)
-    private val markerContext = MarkerContext(applicationContext)
+        markerContext.getSharedPreferences("preferences", Context.MODE_PRIVATE)
 
     override suspend fun doWork(): Result = coroutineScope {
 
@@ -53,6 +54,7 @@ class NotificationWorker(context: Context, workerParams: WorkerParameters) :
                     MarkerData::class.java
                 )
 
+                markerContext.getDatabase().markerDao().insert(marker)
                 val distance = calculateDistance(marker, markerContext)
                 if (!shouldShowNotification(marker)) {
                     return@coroutineScope Result.success()
@@ -63,8 +65,9 @@ class NotificationWorker(context: Context, workerParams: WorkerParameters) :
                         marker.location.latitude,
                         marker.location.longitude
                     )
+                //TODO: don't show already shown notifications
 
-                createNotification(location, distance, marker, pendingIntent)
+                createNotification(location, distance, marker, openAppIntent)
 
                 markerContext.getDatabase().markerDao()
                     .updateNotificationStatus(NotificationStatus.Shown, marker.id)
@@ -96,10 +99,13 @@ class NotificationWorker(context: Context, workerParams: WorkerParameters) :
                         marker.location.latitude,
                         marker.location.longitude
                     )
-                createNotification(location, distance, marker, pendingIntent)
+                createNotification(location, distance, marker, openAppIntent)
+
+                markerContext.getDatabase().markerDao()
+                    .updateNotificationStatus(NotificationStatus.Shown, marker.id)
             }
             Constants.ACTION_REMOVE -> {
-                with(NotificationManagerCompat.from(applicationContext)) {
+                with(NotificationManagerCompat.from(markerContext.getContext())) {
                     val id = inputData.getString(Constants.NOTIFICATION_MESSAGE_ID_KEY)
                     if (id != null) {
                         cancel(id, 0)
@@ -131,6 +137,8 @@ class NotificationWorker(context: Context, workerParams: WorkerParameters) :
         if (distance == -1L || distance > currentActivity.toDetectedActivityDistance()) {
             return false
         }
+
+        //TODO: check if already graded: don't show if so
         return true
     }
 
@@ -139,12 +147,12 @@ class NotificationWorker(context: Context, workerParams: WorkerParameters) :
         markerContext: MarkerContext
     ): Long {
         val markerLocation = marker.location.toLocation()
-        var distance = -1L
-        markerContext.getCurrentLocation().addOnSuccessListener {
-            distance =
-                markerLocation.distanceTo(it).roundToLong()
+        return try {
+            Tasks.await(markerContext.getCurrentLocation())
+                .distanceTo(markerLocation).roundToLong()
+        } catch (e: ExecutionException) {
+            -1L
         }
-        return distance
     }
 
     private fun createNotification(
@@ -155,20 +163,21 @@ class NotificationWorker(context: Context, workerParams: WorkerParameters) :
     ) {
         val notification =
             NotificationCompat.Builder(
-                applicationContext,
+                markerContext.getContext(),
                 Constants.NOTIFICATION_CHANNEL_ID
             )
                 .setContentTitle(location)
                 .setContentText(
-                    applicationContext.getString(R.string.distance_string).format(
+                    markerContext.getContext().getString(R.string.distance_string).format(
                         distance
                     )
                 )
+                //TODO: fix this (shows date in 1970)
                 .setWhen(marker.properties.creationDate.toEpochSecond())
                 .setSmallIcon(R.drawable.ic_notification)
                 .setLargeIcon(
                     BitmapFactory.decodeResource(
-                        applicationContext.resources,
+                        markerContext.getContext().resources,
                         marker.properties.getGlyph()
                     )
                 )
@@ -178,13 +187,14 @@ class NotificationWorker(context: Context, workerParams: WorkerParameters) :
                 .build()
 
         notification.deleteIntent =
-            PendingIntent.getService(applicationContext, 0,
-                Intent(applicationContext, NotificationDeletedService::class.java).apply {
+            PendingIntent.getService(
+                markerContext.getContext(), 0,
+                Intent(markerContext.getContext(), NotificationDeletedService::class.java).apply {
                     putExtra(Constants.NOTIFICATION_MESSAGE_ID_KEY, marker.id)
                 }, 0
             )
 
-        with(NotificationManagerCompat.from(applicationContext)) {
+        with(NotificationManagerCompat.from(markerContext.getContext())) {
             notify(marker.id, 0, notification)
         }
     }

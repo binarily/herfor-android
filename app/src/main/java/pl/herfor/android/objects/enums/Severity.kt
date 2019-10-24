@@ -1,4 +1,4 @@
-package pl.herfor.android.objects
+package pl.herfor.android.objects.enums
 
 import android.content.Context
 import android.content.res.ColorStateList

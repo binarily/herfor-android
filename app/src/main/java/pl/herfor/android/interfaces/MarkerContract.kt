@@ -3,7 +3,11 @@ package pl.herfor.android.interfaces
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.android.gms.maps.model.Marker
-import pl.herfor.android.objects.*
+import pl.herfor.android.objects.MarkerData
+import pl.herfor.android.objects.MarkerProperties
+import pl.herfor.android.objects.Point
+import pl.herfor.android.objects.enums.Grade
+import pl.herfor.android.objects.enums.RightButtonMode
 
 interface MarkerContract {
     interface View {

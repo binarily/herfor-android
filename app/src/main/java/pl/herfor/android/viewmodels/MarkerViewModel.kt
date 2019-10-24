@@ -5,16 +5,21 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.Transformations
 import com.google.android.gms.maps.model.Marker
 import pl.herfor.android.database.MarkerDatabase
-import pl.herfor.android.objects.*
+import pl.herfor.android.objects.MarkerData
+import pl.herfor.android.objects.MarkerGrade
+import pl.herfor.android.objects.enums.Accident
+import pl.herfor.android.objects.enums.Grade
+import pl.herfor.android.objects.enums.RightButtonMode
+import pl.herfor.android.objects.enums.Severity
+import pl.herfor.android.utils.DoubleTrigger
 import pl.herfor.android.utils.getAccidentTypes
 import pl.herfor.android.utils.getSeverities
 import kotlin.concurrent.thread
 
 class MarkerViewModel(application: Application) : AndroidViewModel(application) {
-
-
     //Observables
     val addMarkerToMap: MutableLiveData<MarkerData> by lazy {
         MutableLiveData<MarkerData>()
@@ -35,6 +40,9 @@ class MarkerViewModel(application: Application) : AndroidViewModel(application) 
     val markerFromNotificationStatus: MutableLiveData<String?> by lazy {
         MutableLiveData<String?>()
     }
+    val gradeSubmissionStatus: MutableLiveData<Boolean> by lazy {
+        MutableLiveData<Boolean>()
+    }
 
     //View observers
     val severityFilterChanged: MutableLiveData<Severity> by lazy {
@@ -46,10 +54,25 @@ class MarkerViewModel(application: Application) : AndroidViewModel(application) 
     val currentlyShownMarker: MutableLiveData<MarkerData> by lazy {
         MutableLiveData<MarkerData>()
     }
+    val currentlyShownGrade: MutableLiveData<Grade> by lazy {
+        MutableLiveData<Grade>()
+    }
+    val visibleSeverities: MutableLiveData<MutableList<Severity>> by lazy {
+        MutableLiveData<MutableList<Severity>>(sharedPreferences.getSeverities())
+    }
+    val visibleAccidentTypes: MutableLiveData<MutableList<Accident>> by lazy {
+        MutableLiveData<MutableList<Accident>>(sharedPreferences.getAccidentTypes())
+    }
 
     //All markers
     val markerDao = MarkerDatabase.getDatabase(getApplication()).markerDao()
-    val existingMarkers = markerDao.getAll()
+    val filteredMarkers by lazy {
+        Transformations.switchMap(
+            DoubleTrigger(visibleSeverities, visibleAccidentTypes)
+        ) {
+            markerDao.getFiltered(it.first, it.second)
+        }
+    }
     //Map of markers on map
     val mapMarkers = HashMap<String, Marker>()
 
@@ -63,8 +86,7 @@ class MarkerViewModel(application: Application) : AndroidViewModel(application) 
 
     private val sharedPreferences: SharedPreferences =
         application.getSharedPreferences("preferences", Context.MODE_PRIVATE)
-    var visibleSeverities = sharedPreferences.getSeverities()
-    var visibleAccidentTypes = sharedPreferences.getAccidentTypes()
+
 
     internal fun threadSafeInsert(markerData: MarkerData) {
         thread {

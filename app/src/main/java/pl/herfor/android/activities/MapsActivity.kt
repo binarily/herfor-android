@@ -36,7 +36,12 @@ import kotlinx.android.synthetic.main.sheet_details.*
 import pl.herfor.android.R
 import pl.herfor.android.contexts.MarkerContext
 import pl.herfor.android.interfaces.MarkerContract
-import pl.herfor.android.objects.*
+import pl.herfor.android.objects.MarkerData
+import pl.herfor.android.objects.MarkerProperties
+import pl.herfor.android.objects.enums.Accident
+import pl.herfor.android.objects.enums.Grade
+import pl.herfor.android.objects.enums.RightButtonMode
+import pl.herfor.android.objects.enums.SheetVisibility
 import pl.herfor.android.presenters.MarkerViewPresenter
 import pl.herfor.android.retrofits.RetrofitRepository
 import pl.herfor.android.utils.Constants
@@ -77,7 +82,8 @@ class MapsActivity : AppCompatActivity(), MarkerContract.View {
             RetrofitRepository(model)
         )
 
-        model.currentlyShownMarker.observe(this, Observer { marker -> handleNewMarker(marker) })
+        model.currentlyShownMarker.observe(this, Observer { marker -> handleShowMarker(marker) })
+        model.currentlyShownGrade.observe(this, Observer { grade -> handleGrade(grade) })
 
         detailsSheet = BottomSheetBehavior.from(details_sheet)
         detailsSheet.state = BottomSheetBehavior.STATE_HIDDEN
@@ -338,7 +344,7 @@ class MapsActivity : AppCompatActivity(), MarkerContract.View {
     }
 
     //Observers
-    private fun handleNewMarker(marker: MarkerData) {
+    private fun handleShowMarker(marker: MarkerData) {
         moveCamera(marker.location.toLatLng(), animate = true)
         showDetailsSheet(marker)
         val position = marker.location
@@ -351,4 +357,22 @@ class MapsActivity : AppCompatActivity(), MarkerContract.View {
             )
         }
     }
+
+    private fun handleGrade(grade: Grade) {
+        when (grade) {
+            Grade.UNGRADED -> {
+                relevantGradeButton.isEnabled = true
+                irrelevantGradeButton.isEnabled = true
+            }
+            Grade.RELEVANT -> {
+                relevantGradeButton.isEnabled = true
+                irrelevantGradeButton.isEnabled = false
+            }
+            Grade.NOT_RELEVANT -> {
+                relevantGradeButton.isEnabled = false
+                irrelevantGradeButton.isEnabled = true
+            }
+        }
+    }
+
 }

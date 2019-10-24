@@ -27,6 +27,7 @@
     <string name="add_sheet_title">Dodaj zgłoszenie</string>
     <string name="details_sheet_clock_content_description">Czas zgłoszenia</string>
     <string name="location_unavailable_error">Twoja lokalizacja jest obecnie niedostępna.</string>
-    <string name="irrelevant_button_string">Ważne</string>
-    <string name="relevant_button_string">Nieważne</string>
+    <string name="irrelevant_button_string">Nieważne</string>
+    <string name="relevant_button_string">Ważne</string>
+    <string name="grade_error_toast">Nie można było ocenić zgłoszenia. Spróbuj ponownie w aplikacji.</string>
 </resources>

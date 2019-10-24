@@ -2,10 +2,10 @@ package pl.herfor.android.interfaces
 
 import androidx.lifecycle.LiveData
 import androidx.room.*
-import pl.herfor.android.objects.Accident
 import pl.herfor.android.objects.MarkerData
 import pl.herfor.android.objects.NotificationStatus
-import pl.herfor.android.objects.Severity
+import pl.herfor.android.objects.enums.Accident
+import pl.herfor.android.objects.enums.Severity
 
 @Dao
 interface MarkerDataDao {
@@ -51,4 +51,10 @@ interface MarkerDataDao {
 
     @Query("UPDATE markers SET notificationStatus = :notificationStatus WHERE id = :id")
     fun updateNotificationStatus(notificationStatus: NotificationStatus, id: String)
+
+    @Query("SELECT * FROM markers WHERE severity IN (:severities) AND accident IN (:accidents)")
+    fun getFiltered(
+        severities: List<Severity>?,
+        accidents: List<Accident>?
+    ): LiveData<List<MarkerData>>
 }

@@ -25,11 +25,14 @@ import pl.herfor.android.R
 import pl.herfor.android.interfaces.ContextRepository
 import pl.herfor.android.interfaces.MarkerContract
 import pl.herfor.android.objects.*
+import pl.herfor.android.objects.enums.Accident
+import pl.herfor.android.objects.enums.Grade
+import pl.herfor.android.objects.enums.RightButtonMode
+import pl.herfor.android.objects.enums.Severity
 import pl.herfor.android.retrofits.RetrofitRepository
 import pl.herfor.android.services.ActivityRecognitionService
 import pl.herfor.android.utils.Constants
 import pl.herfor.android.utils.Constants.Companion.NOTIFICATION_CHANNEL_ID
-import pl.herfor.android.utils.isVisible
 import pl.herfor.android.utils.toLatLng
 import pl.herfor.android.utils.toPoint
 import pl.herfor.android.viewmodels.MarkerViewModel
@@ -49,7 +52,8 @@ class MarkerViewPresenter(
             Observer { marker -> removeMarkerFromMapObserver(marker) })
         model.updateMarkerOnMap.observe(context.getLifecycleOwner(),
             Observer { marker -> updateMarkerOnMapObserver(marker) })
-        model.existingMarkers.observe(context.getLifecycleOwner(),
+        model.filteredMarkers.observe(
+            context.getLifecycleOwner(),
             Observer { newMarkerList -> handleChangesInMarkers(newMarkerList) })
         model.submittingMarkerStatus.observe(context.getLifecycleOwner(),
             Observer { status -> submittingMarkerObserver(status) })
@@ -63,6 +67,8 @@ class MarkerViewPresenter(
             context.getLifecycleOwner(),
             Observer { status -> markerFromNotificationObserver(status) }
         )
+        model.currentlyShownMarker.observe(context.getLifecycleOwner(),
+            Observer { marker -> handleShownMarker(marker) })
 
         createNotificationChannel()
         FirebaseMessaging.getInstance().subscribeToTopic("marker-new")
@@ -81,6 +87,8 @@ class MarkerViewPresenter(
         model.connectionStatus.removeObservers(context.getLifecycleOwner())
         model.accidentFilterChanged.removeObservers(context.getLifecycleOwner())
         model.severityFilterChanged.removeObservers(context.getLifecycleOwner())
+        model.markerFromNotificationStatus.removeObservers(context.getLifecycleOwner())
+        model.currentlyShownMarker.removeObservers(context.getLifecycleOwner())
 
         model.started = false
     }
@@ -130,14 +138,15 @@ class MarkerViewPresenter(
                 repository.loadVisibleMarkersChangedSince(request)
             } else {
                 val earliestModificationDate =
-                    it.maxBy { marker -> marker.properties.localModificationDate }!!
+                    it.maxBy { marker -> marker.properties.modificationDate }!!
                 val request = MarkersLookupRequest(
                     northEast,
                     southWest,
-                    earliestModificationDate.properties.localModificationDate
+                    earliestModificationDate.properties.modificationDate
                 )
                 repository.loadVisibleMarkersChangedSince(request)
             }
+            currentMarkers.removeObservers(context.getLifecycleOwner())
         })
     }
 
@@ -289,11 +298,9 @@ class MarkerViewPresenter(
     }
 
     private fun addMarkerToMapObserver(marker: MarkerData) {
-        if (marker.isVisible(model.visibleSeverities, model.visibleAccidentTypes)) {
-            val mapsMarker = view.addMarkerToMap(marker)
-            mapsMarker.tag = marker
-            model.mapMarkers[marker.id] = mapsMarker
-        }
+        val mapsMarker = view.addMarkerToMap(marker)
+        mapsMarker.tag = marker
+        model.mapMarkers[marker.id] = mapsMarker
     }
 
     private fun removeMarkerFromMapObserver(markerId: String) {
@@ -302,11 +309,9 @@ class MarkerViewPresenter(
     }
 
     private fun updateMarkerOnMapObserver(marker: MarkerData) {
-        val mapMarker = model.mapMarkers[marker.id]
+        val mapMarker = model.mapMarkers[marker.id] ?: return
 
-        if ((mapMarker?.tag as MarkerData).properties == marker.properties) {
-            return
-        } else {
+        if ((mapMarker.tag as MarkerData).properties != marker.properties) {
             mapMarker.tag = marker
             mapMarker.setIcon(BitmapDescriptorFactory.fromResource(marker.properties.getGlyph()))
         }
@@ -338,34 +343,16 @@ class MarkerViewPresenter(
     private fun severityFilterObserver(severity: Severity) {
         val sharedPreferences = context.getSharedPreferences("preferences", Context.MODE_PRIVATE)
 
-        when (model.visibleSeverities.contains(severity)) {
+        when (model.visibleSeverities.value?.contains(severity)) {
             true -> {
                 sharedPreferences.edit().putBoolean("severity.${severity.name}", false)
                     .apply()
-                model.visibleSeverities.remove(severity)
-                model.markerDao.getBySeverity(severity)
-                    .observe(context.getLifecycleOwner(),
-                        Observer { markers ->
-                            markers.forEach { marker ->
-                                model.removeMarkerFromMap.value = marker.id
-                                model.markerDao.getBySeverity(severity)
-                                    .removeObservers(context.getLifecycleOwner())
-                            }
-                        })
+                model.visibleSeverities.value?.remove(severity)
             }
             false -> {
                 sharedPreferences.edit().putBoolean("severity.${severity.name}", true)
                     .apply()
-                model.visibleSeverities.add(severity)
-                model.markerDao.getBySeverity(severity)
-                    .observe(context.getLifecycleOwner(),
-                        Observer { markers ->
-                            markers.forEach { marker ->
-                                model.addMarkerToMap.value = marker
-                                model.markerDao.getBySeverity(severity)
-                                    .removeObservers(context.getLifecycleOwner())
-                            }
-                        })
+                model.visibleSeverities.value?.add(severity)
             }
         }
     }
@@ -373,34 +360,16 @@ class MarkerViewPresenter(
     private fun accidentFilterObserver(accident: Accident) {
         val sharedPreferences = context.getSharedPreferences("preferences", Context.MODE_PRIVATE)
 
-        when (model.visibleAccidentTypes.contains(accident)) {
+        when (model.visibleAccidentTypes.value?.contains(accident)) {
             true -> {
                 sharedPreferences.edit().putBoolean("accident.${accident.name}", false)
                     .apply()
-                model.visibleAccidentTypes.remove(accident)
-                model.markerDao.getByAccidentType(accident)
-                    .observe(context.getLifecycleOwner(),
-                        Observer { markers ->
-                            markers.forEach { marker ->
-                                model.removeMarkerFromMap.value = marker.id
-                                model.markerDao.getByAccidentType(accident)
-                                    .removeObservers(context.getLifecycleOwner())
-                            }
-                        })
+                model.visibleAccidentTypes.value?.remove(accident)
             }
             false -> {
                 sharedPreferences.edit().putBoolean("accident.${accident.name}", true)
                     .apply()
-                model.visibleAccidentTypes.add(accident)
-                model.markerDao.getByAccidentType(accident)
-                    .observe(context.getLifecycleOwner(),
-                        Observer { markers ->
-                            markers.forEach { marker ->
-                                model.addMarkerToMap.value = marker
-                                model.markerDao.getByAccidentType(accident)
-                                    .removeObservers(context.getLifecycleOwner())
-                            }
-                        })
+                model.visibleAccidentTypes.value?.add(accident)
             }
         }
     }
@@ -414,5 +383,17 @@ class MarkerViewPresenter(
 
         newMarkerList.filterNot { markerData -> model.mapMarkers.containsKey(markerData.id) }
             .forEach { markerData -> model.addMarkerToMap.value = markerData }
+    }
+
+    private fun handleShownMarker(marker: MarkerData) {
+        val liveData = model.gradeDao.getGradesByMarkerId(marker.id)
+        liveData.observe(context.getLifecycleOwner(), Observer { grades ->
+            if (grades.isEmpty()) {
+                model.currentlyShownGrade.value = Grade.UNGRADED
+            } else {
+                model.currentlyShownGrade.value = grades[0].grade
+            }
+            liveData.removeObservers(context.getLifecycleOwner())
+        })
     }
 }

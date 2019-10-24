@@ -4,9 +4,9 @@ import pl.herfor.android.objects.MarkerGrade
 import pl.herfor.android.objects.MarkerGradeRequest
 import retrofit2.Call
 import retrofit2.http.Body
-import retrofit2.http.PUT
+import retrofit2.http.POST
 
 interface GradeRetrofit {
-    @PUT("grades/add")
+    @POST("grades/add")
     fun create(@Body markerGradeRequest: MarkerGradeRequest): Call<MarkerGrade>
 }

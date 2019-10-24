@@ -2,6 +2,7 @@ package pl.herfor.android.retrofits
 
 import android.util.Log
 import pl.herfor.android.objects.*
+import pl.herfor.android.objects.enums.Severity
 import pl.herfor.android.utils.Constants
 import pl.herfor.android.viewmodels.MarkerViewModel
 import retrofit2.Call
@@ -13,7 +14,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 class RetrofitRepository(val model: MarkerViewModel) {
     //Retrofit
     private val retrofit = Retrofit.Builder()
-        .baseUrl("http://192.168.0.126:8080/")
+        .baseUrl("http://192.168.0.127:8080/")
         .addConverterFactory(GsonConverterFactory.create(Constants.GSON))
         .build()
     private val markerRetrofit = retrofit.create(MarkerRetrofit::class.java)
@@ -70,6 +71,7 @@ class RetrofitRepository(val model: MarkerViewModel) {
                 val marker = response.body()
                 if (marker?.id != null) {
                     model.submittingMarkerStatus.value = true
+                    marker.properties.notificationStatus = NotificationStatus.Dismissed
                     model.threadSafeInsert(marker)
                 }
             }
@@ -111,13 +113,17 @@ class RetrofitRepository(val model: MarkerViewModel) {
     private fun gradeCallback(): Callback<MarkerGrade> {
         return object : Callback<MarkerGrade> {
             override fun onFailure(call: Call<MarkerGrade>, t: Throwable) {
-                model.connectionStatus.value = false
+                model.gradeSubmissionStatus.value = false
             }
 
             override fun onResponse(call: Call<MarkerGrade>, response: Response<MarkerGrade>) {
                 val grade = response.body()
                 if (grade != null) {
                     model.threadSafeInsert(grade)
+                    model.gradeSubmissionStatus.value = true
+                    model.currentlyShownGrade.value = grade.grade
+                } else {
+                    model.gradeSubmissionStatus.value = false
                 }
             }
 
