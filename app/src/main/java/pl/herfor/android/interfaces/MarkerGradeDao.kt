@@ -9,7 +9,10 @@ import pl.herfor.android.objects.MarkerGrade
 @Dao
 interface MarkerGradeDao {
     @Query("SELECT * FROM grades WHERE marker = :markerId")
-    fun getGradesByMarkerId(markerId: String): LiveData<List<MarkerGrade>>
+    fun getGradesByMarkerIdAsync(markerId: String): LiveData<List<MarkerGrade>>
+
+    @Query("SELECT * FROM grades WHERE marker = :markerId")
+    fun getGradesByMarkerIdSync(markerId: String): List<MarkerGrade>
 
     @Insert
     fun insert(markerGrade: MarkerGrade)

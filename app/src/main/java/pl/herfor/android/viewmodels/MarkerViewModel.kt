@@ -1,11 +1,10 @@
 package pl.herfor.android.viewmodels
 
-import android.app.Application
 import android.content.Context
 import android.content.SharedPreferences
-import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.Transformations
+import androidx.lifecycle.ViewModel
 import com.google.android.gms.maps.model.Marker
 import pl.herfor.android.database.MarkerDatabase
 import pl.herfor.android.objects.MarkerData
@@ -19,7 +18,7 @@ import pl.herfor.android.utils.getAccidentTypes
 import pl.herfor.android.utils.getSeverities
 import kotlin.concurrent.thread
 
-class MarkerViewModel(application: Application) : AndroidViewModel(application) {
+class MarkerViewModel(context: Context) : ViewModel() {
     //Observables
     val addMarkerToMap: MutableLiveData<MarkerData> by lazy {
         MutableLiveData<MarkerData>()
@@ -65,7 +64,7 @@ class MarkerViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     //All markers
-    val markerDao = MarkerDatabase.getDatabase(getApplication()).markerDao()
+    val markerDao = MarkerDatabase.getDatabase(context).markerDao()
     val filteredMarkers by lazy {
         Transformations.switchMap(
             DoubleTrigger(visibleSeverities, visibleAccidentTypes)
@@ -77,7 +76,7 @@ class MarkerViewModel(application: Application) : AndroidViewModel(application) 
     val mapMarkers = HashMap<String, Marker>()
 
     //Grade DAO
-    val gradeDao = MarkerDatabase.getDatabase(getApplication()).gradeDao()
+    val gradeDao = MarkerDatabase.getDatabase(context).gradeDao()
 
     //Settings
     var insideLocationArea = true
@@ -85,7 +84,7 @@ class MarkerViewModel(application: Application) : AndroidViewModel(application) 
     var buttonState = RightButtonMode.DISABLED
 
     private val sharedPreferences: SharedPreferences =
-        application.getSharedPreferences("preferences", Context.MODE_PRIVATE)
+        context.getSharedPreferences("preferences", Context.MODE_PRIVATE)
 
 
     internal fun threadSafeInsert(markerData: MarkerData) {

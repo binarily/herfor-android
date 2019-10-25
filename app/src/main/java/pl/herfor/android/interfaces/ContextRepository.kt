@@ -17,4 +17,5 @@ interface ContextRepository {
     fun showToast(resourceId: Int, duration: Int)
     fun getSharedPreferences(name: String, mode: Int): SharedPreferences
     fun getDatabase(): MarkerDatabase
+    fun getString(id: Int): String
 }

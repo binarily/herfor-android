@@ -60,4 +60,8 @@ class MarkerContext(private var context: Context) : ContextRepository {
     override fun getDatabase(): MarkerDatabase {
         return MarkerDatabase.getDatabase(context)
     }
+
+    override fun getString(id: Int): String {
+        return context.getString(id)
+    }
 }

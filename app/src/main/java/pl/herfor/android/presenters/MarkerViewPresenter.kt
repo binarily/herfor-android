@@ -72,6 +72,7 @@ class MarkerViewPresenter(
 
         createNotificationChannel()
         FirebaseMessaging.getInstance().subscribeToTopic("marker-new")
+        FirebaseMessaging.getInstance().subscribeToTopic("marker-update")
         FirebaseMessaging.getInstance().subscribeToTopic("marker-remove")
 
         createActivityRequest()
@@ -138,7 +139,7 @@ class MarkerViewPresenter(
                 repository.loadVisibleMarkersChangedSince(request)
             } else {
                 val earliestModificationDate =
-                    it.maxBy { marker -> marker.properties.modificationDate }!!
+                    it.minBy { marker -> marker.properties.modificationDate }!!
                 val request = MarkersLookupRequest(
                     northEast,
                     southWest,
@@ -205,10 +206,11 @@ class MarkerViewPresenter(
 
     override fun displayMarkerFromNotifications(id: String?) {
         if (id != null) {
-            repository.loadSingleMarkerForNotification(id)
+            repository.loadMarker(id)
         }
     }
 
+    //TODO: as extension function
     private fun checkForPlayServices() {
         val playServicesCode =
             GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(context.getContext())
@@ -218,6 +220,7 @@ class MarkerViewPresenter(
         }
     }
 
+    //TODO: as extension function
     private fun locationPermissionAvailable(): Boolean {
         return ContextCompat.checkSelfPermission(
             context.getContext(),
@@ -386,7 +389,7 @@ class MarkerViewPresenter(
     }
 
     private fun handleShownMarker(marker: MarkerData) {
-        val liveData = model.gradeDao.getGradesByMarkerId(marker.id)
+        val liveData = model.gradeDao.getGradesByMarkerIdAsync(marker.id)
         liveData.observe(context.getLifecycleOwner(), Observer { grades ->
             if (grades.isEmpty()) {
                 model.currentlyShownGrade.value = Grade.UNGRADED

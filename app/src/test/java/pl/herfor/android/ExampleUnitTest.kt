@@ -14,8 +14,11 @@ class ExampleUnitTest {
         assertEquals(4, 2 + 2)
     }
 
-    //Possible unit tests
-    //Things loaded end up in database - NO, that is an integration test
-    //Things reloaded are updated
-    //
+    //TODO: single-method tests
+    //NOT on livedata and its observers
+    //Tests on pure correctness
+    //Examples:
+    // * test on severity change - if severity is the same, nothing happens; if severity changes so do sharedprefs
+    // * test on right button - right combination of data changes button accordingly
+    // * test on database converters - that they convert correctly
 }

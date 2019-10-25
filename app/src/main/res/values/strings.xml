@@ -31,6 +31,7 @@
     <string name="details_sheet_clock_content_description">Report time</string>
     <string name="location_unavailable_error">Your location is currently unavailable.</string>
     <string name="relevant_button_string">Relevant</string>
-    <string name="irrelevant_button_string">Irrelevant</string>
-    <string name="grade_error_toast">Could not grade the report. Try again later in the app.</string>
+    <string name="irrelevant_button_string">Not relevant</string>
+    <string name="grade_error_toast">Could not grade the report. Try again later.</string>
+    <string name="grade_thanks_toast">Thanks for your input - you\'re making this service more accurate.</string>
 </resources>

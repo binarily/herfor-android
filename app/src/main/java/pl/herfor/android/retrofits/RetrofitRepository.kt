@@ -20,8 +20,11 @@ class RetrofitRepository(val model: MarkerViewModel) {
     private val markerRetrofit = retrofit.create(MarkerRetrofit::class.java)
     private val gradeRetrofit = retrofit.create(GradeRetrofit::class.java)
 
-    fun loadSingleMarkerForNotification(id: String) {
-        markerRetrofit.getMarker(id).enqueue(singleMarkerForNotificationCallback())
+    fun loadMarker(
+        id: String,
+        callback: Callback<MarkerData> = singleMarkerForNotificationCallback()
+    ) {
+        markerRetrofit.getMarker(id).enqueue(callback)
     }
 
     fun loadVisibleMarkersChangedSince(request: MarkersLookupRequest) {
@@ -32,8 +35,11 @@ class RetrofitRepository(val model: MarkerViewModel) {
         markerRetrofit.addMarker(request).enqueue(markersAddCallback())
     }
 
-    fun submitGrade(request: MarkerGradeRequest) {
-        gradeRetrofit.create(request).enqueue(gradeCallback())
+    fun submitGrade(
+        request: MarkerGradeRequest,
+        callback: Callback<MarkerGrade> = gradeCallback()
+    ) {
+        gradeRetrofit.create(request).enqueue(callback)
     }
 
     private fun markersCallback(): Callback<List<MarkerData>> {

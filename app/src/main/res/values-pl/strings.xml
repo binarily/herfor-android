@@ -30,4 +30,5 @@
     <string name="irrelevant_button_string">Nieważne</string>
     <string name="relevant_button_string">Ważne</string>
     <string name="grade_error_toast">Nie można było ocenić zgłoszenia. Spróbuj ponownie w aplikacji.</string>
+    <string name="grade_thanks_toast">Dziękujemy za ocenę - dzięki tobie jesteśmy dokładniejsi.</string>
 </resources>
