@@ -14,15 +14,15 @@ import com.google.android.gms.tasks.Tasks
 import kotlinx.coroutines.coroutineScope
 import pl.herfor.android.R
 import pl.herfor.android.activities.MapsActivity
-import pl.herfor.android.contexts.MarkerContext
-import pl.herfor.android.objects.MarkerData
-import pl.herfor.android.objects.NotificationStatus
+import pl.herfor.android.contexts.AppContext
+import pl.herfor.android.objects.Report
+import pl.herfor.android.objects.enums.NotificationStatus
 import pl.herfor.android.objects.enums.Severity
 import pl.herfor.android.retrofits.RetrofitRepository
 import pl.herfor.android.services.NotificationDeletedService
 import pl.herfor.android.services.NotificationGradingService
 import pl.herfor.android.utils.*
-import pl.herfor.android.viewmodels.MarkerViewModel
+import pl.herfor.android.viewmodels.ReportViewModel
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -33,17 +33,17 @@ import kotlin.random.Random
 
 class NotificationWorker(context: Context, workerParams: WorkerParameters) :
     CoroutineWorker(context, workerParams) {
-    private val markerContext = MarkerContext(applicationContext)
-    private val model = MarkerViewModel(markerContext.getContext())
+    private val appContext = AppContext(applicationContext)
+    private val model = ReportViewModel(appContext.getContext())
     private val retrofit = RetrofitRepository(model)
     private val openAppIntent =
         PendingIntent.getActivity(
-            markerContext.getContext(),
+            appContext.getContext(),
             Random.nextInt(),
-            Intent(markerContext.getContext(), MapsActivity::class.java).apply {
+            Intent(appContext.getContext(), MapsActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
                 putExtra(
-                    Constants.INTENT_MARKER_ID_KEY,
+                    Constants.INTENT_REPORT_ID_KEY,
                     inputData.getString(Constants.NOTIFICATION_MESSAGE_ID_KEY)
                 )
             },
@@ -51,11 +51,11 @@ class NotificationWorker(context: Context, workerParams: WorkerParameters) :
         )
     private val relevantGradeIntent =
         PendingIntent.getService(
-            markerContext.getContext(),
+            appContext.getContext(),
             Random.nextInt(),
-            Intent(markerContext.getContext(), NotificationGradingService::class.java).apply {
+            Intent(appContext.getContext(), NotificationGradingService::class.java).apply {
                 putExtra(
-                    NotificationGradingService.MARKER_ID_PARAM,
+                    NotificationGradingService.REPORT_ID_PARAM,
                     inputData.getString(Constants.NOTIFICATION_MESSAGE_ID_KEY)
                 )
                 action = NotificationGradingService.GRADE_RELEVANT_ACTION
@@ -64,11 +64,11 @@ class NotificationWorker(context: Context, workerParams: WorkerParameters) :
         )
     private val notRelevantGradeIntent =
         PendingIntent.getService(
-            markerContext.getContext(),
+            appContext.getContext(),
             Random.nextInt(),
-            Intent(markerContext.getContext(), NotificationGradingService::class.java).apply {
+            Intent(appContext.getContext(), NotificationGradingService::class.java).apply {
                 putExtra(
-                    NotificationGradingService.MARKER_ID_PARAM,
+                    NotificationGradingService.REPORT_ID_PARAM,
                     inputData.getString(Constants.NOTIFICATION_MESSAGE_ID_KEY)
                 )
                 action = NotificationGradingService.GRADE_NOT_RELEVANT_ACTION
@@ -76,23 +76,23 @@ class NotificationWorker(context: Context, workerParams: WorkerParameters) :
             PendingIntent.FLAG_UPDATE_CURRENT
         )
     private val sharedPreferences =
-        markerContext.getSharedPreferences("preferences", Context.MODE_PRIVATE)
+        appContext.getSharedPreferences("preferences", Context.MODE_PRIVATE)
 
     override suspend fun doWork(): Result = coroutineScope {
 
         when (inputData.getString(Constants.NOTIFICATION_MESSAGE_ACTION_KEY)) {
             Constants.ACTION_NEW -> {
-                val marker = Constants.GSON.fromJson(
-                    inputData.getString(Constants.NOTIFICATION_MESSAGE_MARKER_KEY),
-                    MarkerData::class.java
+                val report = Constants.GSON.fromJson(
+                    inputData.getString(Constants.NOTIFICATION_MESSAGE_REPORT_KEY),
+                    Report::class.java
                 )
-                handleNewMarker(marker)
+                handleNewReport(report)
             }
             Constants.ACTION_UPDATE -> {
-                handleUpdateMarker()
+                handleUpdateReport()
             }
             Constants.ACTION_REMOVE -> {
-                handleRemoveMarker()
+                handleRemoveReport()
             }
             else -> {
                 Log.e(this.javaClass.name, "Received message with no action, ignoring...")
@@ -103,87 +103,95 @@ class NotificationWorker(context: Context, workerParams: WorkerParameters) :
         return@coroutineScope Result.success()
     }
 
-    private fun handleRemoveMarker() {
-        with(NotificationManagerCompat.from(markerContext.getContext())) {
-            val id = inputData.getString(Constants.NOTIFICATION_MESSAGE_ID_KEY)
-            if (id != null) {
-                cancel(id, 0)
-                markerContext.getDatabase().markerDao().deleteById(id)
-            }
-        }
-    }
-
-    private fun handleUpdateMarker() {
-        val id = inputData.getString(Constants.NOTIFICATION_MESSAGE_ID_KEY) ?: return
-        val newSeverity = inputData.getString(Constants.NOTIFICATION_MESSAGE_SEVERITY_KEY) ?: return
-
-        val marker = markerContext.getDatabase().markerDao().getOne(id).value
-        if (marker != null) {
-            markerContext.getDatabase().markerDao()
-                .updateSeverity(Severity.valueOf(newSeverity), id)
-        } else {
-            retrofit.loadMarker(id, newMarkerCallback())
-            return
-        }
-
-        if (alreadyGraded(marker.id) || alreadyShown(marker.id) || !shouldShowNotification(marker)) {
+    private fun handleNewReport(report: Report) {
+        appContext.getDatabase().reportDao().insert(report)
+        val distance = calculateDistance(report, appContext)
+        if (!shouldShowNotification(report)) {
             return
         }
 
         val location =
-            markerContext.getLocationName(
-                marker.location.latitude,
-                marker.location.longitude
-            )
-        val distance = calculateDistance(marker, markerContext)
-        createNotification(location, distance, marker, openAppIntent)
-
-        markerContext.getDatabase().markerDao()
-            .updateNotificationStatus(NotificationStatus.Shown, marker.id)
-    }
-
-    private fun newMarkerCallback(): Callback<MarkerData> {
-        return object : Callback<MarkerData> {
-            override fun onFailure(call: Call<MarkerData>, t: Throwable) {
-                Log.d("NotificationWorker", "Received update to non-existing marker, ignoring...")
-            }
-
-            override fun onResponse(call: Call<MarkerData>, response: Response<MarkerData>) {
-                if (response.body() != null) {
-                    handleNewMarker(response.body()!!)
-                }
-            }
-        }
-    }
-
-    private fun handleNewMarker(marker: MarkerData) {
-        markerContext.getDatabase().markerDao().insert(marker)
-        val distance = calculateDistance(marker, markerContext)
-        if (!shouldShowNotification(marker)) {
-            return
-        }
-
-        val location =
-            markerContext.getLocationName(
-                marker.location.latitude,
-                marker.location.longitude
+            appContext.getLocationName(
+                report.location.latitude,
+                report.location.longitude
             )
 
-        createNotification(location, distance, marker, openAppIntent)
+        createNotification(location, distance, report, openAppIntent)
 
-        markerContext.getDatabase().markerDao()
-            .updateNotificationStatus(NotificationStatus.Shown, marker.id)
+        appContext.getDatabase().reportDao()
+            .updateNotificationStatus(NotificationStatus.Shown, report.id)
         return
     }
 
-    private fun shouldShowNotification(marker: MarkerData): Boolean {
+    private fun handleUpdateReport() {
+        val id = inputData.getString(Constants.NOTIFICATION_MESSAGE_ID_KEY) ?: return
+        val newSeverity = inputData.getString(Constants.NOTIFICATION_MESSAGE_SEVERITY_KEY) ?: return
+
+        val report = appContext.getDatabase().reportDao().getOne(id).value
+        if (report != null) {
+            appContext.getDatabase().reportDao()
+                .updateSeverity(Severity.valueOf(newSeverity), id)
+        } else {
+            retrofit.loadReport(id, newReportCallback())
+            return
+        }
+
+        if (alreadyGraded(report.id) || alreadyShown(report.id) || !shouldShowNotification(report)) {
+            return
+        }
+
+        val location =
+            appContext.getLocationName(
+                report.location.latitude,
+                report.location.longitude
+            )
+        val distance = calculateDistance(report, appContext)
+        createNotification(location, distance, report, openAppIntent)
+
+        appContext.getDatabase().reportDao()
+            .updateNotificationStatus(NotificationStatus.Shown, report.id)
+    }
+
+    private fun handleRemoveReport() {
+        with(NotificationManagerCompat.from(appContext.getContext())) {
+            val id = inputData.getString(Constants.NOTIFICATION_MESSAGE_ID_KEY)
+            if (id != null) {
+                cancel(id, 0)
+                appContext.getDatabase().reportDao().deleteById(id)
+            }
+        }
+    }
+
+    //Condition methods
+    private fun shouldShowNotification(marker: Report): Boolean {
         val severities = sharedPreferences.getSeverities()
         val accidentTypes = sharedPreferences.getAccidentTypes()
         if (!marker.isVisible(severities, accidentTypes)) {
             return false
         }
 
-        val distance = calculateDistance(marker, markerContext)
+        when {
+            severities.contains(Severity.GREEN) -> when (marker.properties.severity) {
+                Severity.GREEN -> if (Random.nextInt(0, 100) < 50) return false
+                Severity.YELLOW -> if (Random.nextInt(0, 100) < 100) return false
+                Severity.RED -> if (Random.nextInt(0, 100) < 100) return false
+                Severity.NONE -> return false
+            }
+            severities.contains(Severity.YELLOW) -> when (marker.properties.severity) {
+                Severity.GREEN -> if (Random.nextInt(0, 100) < 30) return false
+                Severity.YELLOW -> if (Random.nextInt(0, 100) < 80) return false
+                Severity.RED -> if (Random.nextInt(0, 100) < 100) return false
+                Severity.NONE -> return false
+            }
+            severities.contains(Severity.RED) -> when (marker.properties.severity) {
+                Severity.GREEN -> if (Random.nextInt(0, 100) < 15) return false
+                Severity.YELLOW -> if (Random.nextInt(0, 100) < 50) return false
+                Severity.RED -> if (Random.nextInt(0, 100) < 100) return false
+                Severity.NONE -> return false
+            }
+        }
+
+        val distance = calculateDistance(marker, appContext)
 
         val currentActivity =
             sharedPreferences.getInt("currentActivity", DetectedActivity.STILL)
@@ -195,45 +203,33 @@ class NotificationWorker(context: Context, workerParams: WorkerParameters) :
         return true
     }
 
-    private fun calculateDistance(
-        marker: MarkerData,
-        markerContext: MarkerContext
-    ): Long {
-        val markerLocation = marker.location.toLocation()
-        return try {
-            Tasks.await(markerContext.getCurrentLocation())
-                .distanceTo(markerLocation).roundToLong()
-        } catch (e: ExecutionException) {
-            -1L
-        }
-    }
-
     private fun alreadyShown(id: String): Boolean {
-        val marker = markerContext.getDatabase().markerDao().getOne(id).value
+        val marker = appContext.getDatabase().reportDao().getOne(id).value
             ?: return false
 
         return marker.properties.notificationStatus != NotificationStatus.NotShown
     }
 
     private fun alreadyGraded(id: String): Boolean {
-        val grades = markerContext.getDatabase().gradeDao().getGradesByMarkerIdSync(id)
+        val grades = appContext.getDatabase().gradeDao().getGradesByReportIdSync(id)
         return grades.isNotEmpty()
     }
 
+    //Helper methods
     private fun createNotification(
         location: String,
         distance: Long,
-        marker: MarkerData,
+        marker: Report,
         pendingIntent: PendingIntent
     ) {
         val notification =
             NotificationCompat.Builder(
-                markerContext.getContext(),
+                appContext.getContext(),
                 Constants.NOTIFICATION_CHANNEL_ID
             )
                 .setContentTitle(location)
                 .setContentText(
-                    markerContext.getContext().getString(R.string.distance_string).format(
+                    appContext.getContext().getString(R.string.distance_string).format(
                         distance
                     )
                 )
@@ -241,17 +237,17 @@ class NotificationWorker(context: Context, workerParams: WorkerParameters) :
                 .setSmallIcon(R.drawable.ic_notification)
                 .setLargeIcon(
                     BitmapFactory.decodeResource(
-                        markerContext.getContext().resources,
+                        appContext.getContext().resources,
                         marker.properties.getGlyph()
                     )
                 )
                 .addAction(
                     R.drawable.ic_relevant_check,
-                    markerContext.getString(R.string.relevant_button_string), relevantGradeIntent
+                    appContext.getString(R.string.relevant_button_string), relevantGradeIntent
                 )
                 .addAction(
                     R.drawable.ic_irrelevant_cross,
-                    markerContext.getString(R.string.irrelevant_button_string),
+                    appContext.getString(R.string.irrelevant_button_string),
                     notRelevantGradeIntent
                 )
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -261,15 +257,43 @@ class NotificationWorker(context: Context, workerParams: WorkerParameters) :
 
         notification.deleteIntent =
             PendingIntent.getService(
-                markerContext.getContext(), 0,
-                Intent(markerContext.getContext(), NotificationDeletedService::class.java).apply {
+                appContext.getContext(), 0,
+                Intent(appContext.getContext(), NotificationDeletedService::class.java).apply {
                     putExtra(Constants.NOTIFICATION_MESSAGE_ID_KEY, marker.id)
                 }, 0
             )
 
-        with(NotificationManagerCompat.from(markerContext.getContext())) {
+        with(NotificationManagerCompat.from(appContext.getContext())) {
             notify(marker.id, 0, notification)
         }
 
+    }
+
+    private fun calculateDistance(
+        marker: Report,
+        appContext: AppContext
+    ): Long {
+        val markerLocation = marker.location.toLocation()
+        return try {
+            Tasks.await(appContext.getCurrentLocation())
+                .distanceTo(markerLocation).roundToLong()
+        } catch (e: ExecutionException) {
+            -1L
+        }
+    }
+
+    //Callbacks
+    private fun newReportCallback(): Callback<Report> {
+        return object : Callback<Report> {
+            override fun onFailure(call: Call<Report>, t: Throwable) {
+                Log.d("NotificationWorker", "Received update to non-existing marker, ignoring...")
+            }
+
+            override fun onResponse(call: Call<Report>, response: Response<Report>) {
+                if (response.body() != null) {
+                    handleNewReport(response.body()!!)
+                }
+            }
+        }
     }
 }

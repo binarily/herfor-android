@@ -100,13 +100,13 @@
             android:text="@string/add"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:id="@+id/submitMarkerButton"
+            android:id="@+id/submitReportButton"
             app:layout_constraintStart_toStartOf="parent"
             android:layout_marginStart="16dp"
             android:layout_marginTop="8dp"
             app:layout_constraintTop_toBottomOf="@+id/addChipGroup"
             app:layout_constraintEnd_toEndOf="parent"
             android:layout_marginEnd="16dp"
-            android:onClick="onMarkerAddButton"
+            android:onClick="onReportAddButton"
             app:layout_constraintBottom_toBottomOf="parent" />
 </androidx.constraintlayout.widget.ConstraintLayout>

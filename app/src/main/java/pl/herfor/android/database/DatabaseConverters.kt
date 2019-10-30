@@ -3,9 +3,9 @@ package pl.herfor.android.database
 import androidx.room.TypeConverter
 import org.threeten.bp.OffsetDateTime
 import org.threeten.bp.format.DateTimeFormatter
-import pl.herfor.android.objects.NotificationStatus
 import pl.herfor.android.objects.enums.Accident
 import pl.herfor.android.objects.enums.Grade
+import pl.herfor.android.objects.enums.NotificationStatus
 import pl.herfor.android.objects.enums.Severity
 
 class DatabaseConverters {

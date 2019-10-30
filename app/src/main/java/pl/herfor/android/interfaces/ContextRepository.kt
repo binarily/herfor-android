@@ -6,7 +6,7 @@ import android.content.SharedPreferences
 import android.location.Location
 import androidx.lifecycle.LifecycleOwner
 import com.google.android.gms.tasks.Task
-import pl.herfor.android.database.MarkerDatabase
+import pl.herfor.android.database.AppDatabase
 
 interface ContextRepository {
     fun getCurrentLocation(): Task<Location>
@@ -16,6 +16,6 @@ interface ContextRepository {
     fun getActivity(): Activity
     fun showToast(resourceId: Int, duration: Int)
     fun getSharedPreferences(name: String, mode: Int): SharedPreferences
-    fun getDatabase(): MarkerDatabase
+    fun getDatabase(): AppDatabase
     fun getString(id: Int): String
 }

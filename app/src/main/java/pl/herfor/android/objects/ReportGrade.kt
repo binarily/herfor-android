@@ -6,18 +6,17 @@ import pl.herfor.android.objects.enums.Grade
 
 @Entity(
     foreignKeys = [ForeignKey(
-        entity = MarkerData::class,
+        entity = Report::class,
         parentColumns = arrayOf("id"),
-        childColumns = arrayOf("marker")
+        childColumns = arrayOf("report")
     )],
-    indices = [Index("id"), Index("marker")],
+    indices = [Index("id"), Index("report")],
     tableName = "grades"
 )
-data class MarkerGrade(
+data class ReportGrade(
     @PrimaryKey val id: String,
-    @ColumnInfo(name = "marker")
-    val markerId: String,
+    @ColumnInfo(name = "report")
+    val reportId: String,
     val submissionDate: OffsetDateTime,
-    @Embedded val gradeLocation: Point,
     val grade: Grade
 )

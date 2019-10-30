@@ -4,7 +4,7 @@
     <string name="connection_loss_explanation">Utraciliśmy dostęp do internetu.</string>
     <string name="geocoder_unknown">Nieznana lokalizacja</string>
     <string name="location_explanation">Potrzebujemy dostępu do lokalizacji, abyś mógł zgłaszać utrudnienia i widzieć swoją lokalizację.</string>
-    <string name="marker_submit_error">Nie udało się wysłać zgłoszenia. Spróbuj ponownie</string>
+    <string name="report_submit_error">Nie udało się wysłać zgłoszenia. Spróbuj ponownie</string>
     <string name="reload">Załaduj ponownie</string>
     <string name="settings_button">Ustawienia</string>
     <string name="time_details_description">Dodano %s</string>
@@ -23,7 +23,7 @@
     <string name="add">Dodaj</string>
     <string name="none_severity">Zakończony</string>
     <string name="distance_string">%d m od ciebie</string>
-    <string name="marker_notification_unavailable">Zgłoszenie jest niedostępne lub się zakończyło.</string>
+    <string name="report_notification_unavailable">Zgłoszenie jest niedostępne lub się zakończyło.</string>
     <string name="add_sheet_title">Dodaj zgłoszenie</string>
     <string name="details_sheet_clock_content_description">Czas zgłoszenia</string>
     <string name="location_unavailable_error">Twoja lokalizacja jest obecnie niedostępna.</string>

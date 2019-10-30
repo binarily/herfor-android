@@ -10,10 +10,10 @@ import kotlinx.android.synthetic.main.sheet_filter.*
 import pl.herfor.android.R
 import pl.herfor.android.objects.enums.Accident
 import pl.herfor.android.objects.enums.Severity
-import pl.herfor.android.viewmodels.MarkerViewModel
+import pl.herfor.android.viewmodels.ReportViewModel
 
 class FilterSheetFragment(
-    private val model: MarkerViewModel
+    private val model: ReportViewModel
 ) : BottomSheetDialogFragment() {
     override fun onCreateView(
         inflater: LayoutInflater,

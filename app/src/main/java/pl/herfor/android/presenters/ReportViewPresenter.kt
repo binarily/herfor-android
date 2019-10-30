@@ -22,58 +22,63 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.firebase.messaging.FirebaseMessaging
 import pl.herfor.android.R
+import pl.herfor.android.interfaces.AppContract
 import pl.herfor.android.interfaces.ContextRepository
-import pl.herfor.android.interfaces.MarkerContract
-import pl.herfor.android.objects.*
+import pl.herfor.android.objects.Point
+import pl.herfor.android.objects.Report
+import pl.herfor.android.objects.ReportProperties
 import pl.herfor.android.objects.enums.Accident
 import pl.herfor.android.objects.enums.Grade
 import pl.herfor.android.objects.enums.RightButtonMode
 import pl.herfor.android.objects.enums.Severity
+import pl.herfor.android.objects.requests.ReportAddRequest
+import pl.herfor.android.objects.requests.ReportGradeRequest
+import pl.herfor.android.objects.requests.ReportSearchRequest
 import pl.herfor.android.retrofits.RetrofitRepository
 import pl.herfor.android.services.ActivityRecognitionService
 import pl.herfor.android.utils.Constants
 import pl.herfor.android.utils.Constants.Companion.NOTIFICATION_CHANNEL_ID
 import pl.herfor.android.utils.toLatLng
 import pl.herfor.android.utils.toPoint
-import pl.herfor.android.viewmodels.MarkerViewModel
+import pl.herfor.android.viewmodels.ReportViewModel
 
-class MarkerViewPresenter(
-    private val model: MarkerViewModel, private val view: MarkerContract.View,
+class ReportViewPresenter(
+    private val model: ReportViewModel, private val view: AppContract.View,
     private val context: ContextRepository, private val repository: RetrofitRepository
-) : MarkerContract.Presenter {
+) : AppContract.Presenter {
     override fun start() {
         if (model.started) {
             return
         }
 
-        model.addMarkerToMap.observe(context.getLifecycleOwner(),
-            Observer { marker -> addMarkerToMapObserver(marker) })
-        model.removeMarkerFromMap.observe(context.getLifecycleOwner(),
-            Observer { marker -> removeMarkerFromMapObserver(marker) })
-        model.updateMarkerOnMap.observe(context.getLifecycleOwner(),
-            Observer { marker -> updateMarkerOnMapObserver(marker) })
-        model.filteredMarkers.observe(
+        model.addReportToMap.observe(context.getLifecycleOwner(),
+            Observer { report -> addReportToMapObserver(report) })
+        model.removeReportFromMap.observe(context.getLifecycleOwner(),
+            Observer { report -> removeReportFromMapObserver(report) })
+        model.updateReportOnMap.observe(context.getLifecycleOwner(),
+            Observer { report -> updateReportOnMapObserver(report) })
+        model.filteredReports.observe(
             context.getLifecycleOwner(),
-            Observer { newMarkerList -> handleChangesInMarkers(newMarkerList) })
-        model.submittingMarkerStatus.observe(context.getLifecycleOwner(),
-            Observer { status -> submittingMarkerObserver(status) })
+            Observer { newReportList -> handleChangesInReports(newReportList) })
+        model.submittingReportStatus.observe(context.getLifecycleOwner(),
+            Observer { status -> submittingReportObserver(status) })
         model.connectionStatus.observe(context.getLifecycleOwner(),
             Observer { status -> connectionStatusObserver(status) })
         model.severityFilterChanged.observe(context.getLifecycleOwner(),
             Observer { severityType -> severityFilterObserver(severityType) })
         model.accidentFilterChanged.observe(context.getLifecycleOwner(),
             Observer { accidentType -> accidentFilterObserver(accidentType) })
-        model.markerFromNotificationStatus.observe(
+        model.reportFromNotificationStatus.observe(
             context.getLifecycleOwner(),
-            Observer { status -> markerFromNotificationObserver(status) }
+            Observer { status -> reportFromNotificationObserver(status) }
         )
-        model.currentlyShownMarker.observe(context.getLifecycleOwner(),
-            Observer { marker -> handleShownMarker(marker) })
+        model.currentlyShownReport.observe(context.getLifecycleOwner(),
+            Observer { report -> handleShownReport(report) })
 
         createNotificationChannel()
-        FirebaseMessaging.getInstance().subscribeToTopic("marker-new")
-        FirebaseMessaging.getInstance().subscribeToTopic("marker-update")
-        FirebaseMessaging.getInstance().subscribeToTopic("marker-remove")
+        FirebaseMessaging.getInstance().subscribeToTopic("report-new")
+        FirebaseMessaging.getInstance().subscribeToTopic("report-update")
+        FirebaseMessaging.getInstance().subscribeToTopic("report-remove")
 
         createActivityRequest()
 
@@ -81,32 +86,35 @@ class MarkerViewPresenter(
     }
 
     override fun stop() {
-        model.addMarkerToMap.removeObservers(context.getLifecycleOwner())
-        model.removeMarkerFromMap.removeObservers(context.getLifecycleOwner())
-        model.updateMarkerOnMap.removeObservers(context.getLifecycleOwner())
-        model.submittingMarkerStatus.removeObservers(context.getLifecycleOwner())
+        model.addReportToMap.removeObservers(context.getLifecycleOwner())
+        model.removeReportFromMap.removeObservers(context.getLifecycleOwner())
+        model.updateReportOnMap.removeObservers(context.getLifecycleOwner())
+        model.submittingReportStatus.removeObservers(context.getLifecycleOwner())
         model.connectionStatus.removeObservers(context.getLifecycleOwner())
         model.accidentFilterChanged.removeObservers(context.getLifecycleOwner())
         model.severityFilterChanged.removeObservers(context.getLifecycleOwner())
-        model.markerFromNotificationStatus.removeObservers(context.getLifecycleOwner())
-        model.currentlyShownMarker.removeObservers(context.getLifecycleOwner())
+        model.reportFromNotificationStatus.removeObservers(context.getLifecycleOwner())
+        model.currentlyShownReport.removeObservers(context.getLifecycleOwner())
 
         model.started = false
     }
 
     @SuppressLint("MissingPermission")
-    override fun submitMarker(markerProperties: MarkerProperties) {
-        if (locationPermissionAvailable()) {
+    override fun submitReport(reportProperties: ReportProperties) {
+        if (checkForLocationPermission()) {
             context.getCurrentLocation().addOnSuccessListener { location: Location? ->
                 if (location != null) {
-                    val marker = MarkerAddRequest(location.toPoint(), markerProperties)
-                    repository.submitMarker(marker)
+                    val report = ReportAddRequest(
+                        location.toPoint(),
+                        reportProperties
+                    )
+                    repository.submitReport(report)
                 } else {
-                    view.showSubmitMarkerFailure()
+                    view.showSubmitReportFailure()
                 }
             }
                 .addOnFailureListener {
-                    view.showSubmitMarkerFailure()
+                    view.showSubmitReportFailure()
                 }
         } else {
             seekPermissions(true)
@@ -114,10 +122,14 @@ class MarkerViewPresenter(
     }
 
     override fun submitGrade(grade: Grade) {
-        if (locationPermissionAvailable()) {
+        if (checkForLocationPermission()) {
             context.getCurrentLocation().addOnSuccessListener {
                 val request =
-                    MarkerGradeRequest(model.currentlyShownMarker.value!!.id, it.toPoint(), grade)
+                    ReportGradeRequest(
+                        model.currentlyShownReport.value!!.id,
+                        it.toPoint(),
+                        grade
+                    )
                 repository.submitGrade(request)
             }
         } else {
@@ -125,29 +137,29 @@ class MarkerViewPresenter(
         }
     }
 
-    override fun loadMarkersToMap(northEast: Point, southWest: Point) {
-        val currentMarkers = model.markerDao.getFromLocation(
+    override fun loadReportsToMap(northEast: Point, southWest: Point) {
+        val currentReports = model.reportDao.getFromLocation(
             northEast.longitude, southWest.longitude,
             northEast.latitude, southWest.latitude
         )
-        currentMarkers.observe(context.getLifecycleOwner(), Observer {
+        currentReports.observe(context.getLifecycleOwner(), Observer {
             if (it.isEmpty()) {
-                val request = MarkersLookupRequest(
+                val request = ReportSearchRequest(
                     northEast,
                     southWest
                 )
-                repository.loadVisibleMarkersChangedSince(request)
+                repository.loadVisibleReportsChangedSince(request)
             } else {
                 val earliestModificationDate =
-                    it.minBy { marker -> marker.properties.modificationDate }!!
-                val request = MarkersLookupRequest(
+                    it.minBy { report -> report.properties.modificationDate }!!
+                val request = ReportSearchRequest(
                     northEast,
                     southWest,
                     earliestModificationDate.properties.modificationDate
                 )
-                repository.loadVisibleMarkersChangedSince(request)
+                repository.loadVisibleReportsChangedSince(request)
             }
-            currentMarkers.removeObservers(context.getLifecycleOwner())
+            currentReports.removeObservers(context.getLifecycleOwner())
         })
     }
 
@@ -169,7 +181,7 @@ class MarkerViewPresenter(
         this.showCurrentLocation(animate = false)
     }
 
-    override fun displayMarkerAdd() {
+    override fun displayReportAdd() {
         this.zoomToCurrentLocation()
         view.showAddSheet()
     }
@@ -183,7 +195,7 @@ class MarkerViewPresenter(
 
     @SuppressLint("MissingPermission")
     override fun setRightButtonMode(bounds: LatLngBounds) {
-        if (locationPermissionAvailable()) {
+        if (checkForLocationPermission()) {
             context.getCurrentLocation().addOnSuccessListener { location: Location? ->
                 if (location != null) {
                     val transition =
@@ -192,7 +204,7 @@ class MarkerViewPresenter(
                         model.insideLocationArea = !model.insideLocationArea
                     }
                     val buttonMode =
-                        if (model.insideLocationArea) RightButtonMode.ADD_MARKER else RightButtonMode.SHOW_LOCATION
+                        if (model.insideLocationArea) RightButtonMode.ADD_REPORT else RightButtonMode.SHOW_LOCATION
                     view.setRightButton(buttonMode, transition)
                 } else {
                     context.showToast(R.string.location_unavailable_error, Toast.LENGTH_SHORT)
@@ -204,14 +216,13 @@ class MarkerViewPresenter(
         }
     }
 
-    override fun displayMarkerFromNotifications(id: String?) {
+    override fun displayReportFromNotifications(id: String?) {
         if (id != null) {
-            repository.loadMarker(id)
+            repository.loadReport(id)
         }
     }
 
-    //TODO: as extension function
-    private fun checkForPlayServices() {
+    fun checkForPlayServices() {
         val playServicesCode =
             GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(context.getContext())
         if (playServicesCode != ConnectionResult.SUCCESS) {
@@ -220,15 +231,14 @@ class MarkerViewPresenter(
         }
     }
 
-    //TODO: as extension function
-    private fun locationPermissionAvailable(): Boolean {
+    fun checkForLocationPermission(): Boolean {
         return ContextCompat.checkSelfPermission(
             context.getContext(),
             Manifest.permission.ACCESS_FINE_LOCATION
         ) == PackageManager.PERMISSION_GRANTED
     }
 
-    private fun createNotificationChannel() {
+    fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val name = context.getContext().getString(R.string.channel_name)
             val descriptionText = context.getContext().getString(R.string.channel_description)
@@ -245,8 +255,8 @@ class MarkerViewPresenter(
         }
     }
 
-    private fun showCurrentLocation(animate: Boolean) {
-        if (locationPermissionAvailable()) {
+    fun showCurrentLocation(animate: Boolean) {
+        if (checkForLocationPermission()) {
             context.getCurrentLocation().addOnSuccessListener { location: Location? ->
                 if (location != null) {
                     view.moveCamera(location.toLatLng(), animate)
@@ -259,9 +269,9 @@ class MarkerViewPresenter(
         }
     }
 
-    private fun handleLocationPermissionChange(permissionEnabled: Boolean) {
+    fun handleLocationPermissionChange(permissionEnabled: Boolean) {
         val buttonMode =
-            if (permissionEnabled) RightButtonMode.ADD_MARKER else RightButtonMode.DISABLED
+            if (permissionEnabled) RightButtonMode.ADD_REPORT else RightButtonMode.DISABLED
         //TODO: replace with LiveData + observer in MapsActivity
         view.setLocationStateForMap(permissionEnabled)
         view.setRightButton(buttonMode, false)
@@ -270,7 +280,7 @@ class MarkerViewPresenter(
         }
     }
 
-    private fun createActivityRequest() {
+    fun createActivityRequest() {
         val pendingIntent = PendingIntent.getService(
             context.getContext(),
             0,
@@ -287,51 +297,51 @@ class MarkerViewPresenter(
 
     //OBSERVERS
     //TODO: move to separate class, aka ObserverCollection
-    private fun markerFromNotificationObserver(status: String?) {
+    fun reportFromNotificationObserver(status: String?) {
         when (status) {
             null -> {
-                context.showToast(R.string.marker_notification_unavailable, Toast.LENGTH_SHORT)
+                context.showToast(R.string.report_notification_unavailable, Toast.LENGTH_SHORT)
             }
             else -> {
                 if (model.mapMarkers[status] != null) {
-                    model.currentlyShownMarker.value = model.mapMarkers[status]?.tag as MarkerData
+                    model.currentlyShownReport.value = model.mapMarkers[status]?.tag as Report
                 }
             }
         }
     }
 
-    private fun addMarkerToMapObserver(marker: MarkerData) {
-        val mapsMarker = view.addMarkerToMap(marker)
-        mapsMarker.tag = marker
-        model.mapMarkers[marker.id] = mapsMarker
+    fun addReportToMapObserver(report: Report) {
+        val mapsMarker = view.addReportToMap(report)
+        mapsMarker.tag = report
+        model.mapMarkers[report.id] = mapsMarker
     }
 
-    private fun removeMarkerFromMapObserver(markerId: String) {
-        model.mapMarkers[markerId]?.remove()
-        model.mapMarkers.remove(markerId)
+    fun removeReportFromMapObserver(reportId: String) {
+        model.mapMarkers[reportId]?.remove()
+        model.mapMarkers.remove(reportId)
     }
 
-    private fun updateMarkerOnMapObserver(marker: MarkerData) {
-        val mapMarker = model.mapMarkers[marker.id] ?: return
+    fun updateReportOnMapObserver(report: Report) {
+        val mapMarker = model.mapMarkers[report.id] ?: return
 
-        if ((mapMarker.tag as MarkerData).properties != marker.properties) {
-            mapMarker.tag = marker
-            mapMarker.setIcon(BitmapDescriptorFactory.fromResource(marker.properties.getGlyph()))
+        if ((mapMarker.tag as Report).properties != report.properties) {
+            mapMarker.tag = report
+            mapMarker.setIcon(BitmapDescriptorFactory.fromResource(report.properties.getGlyph()))
         }
     }
 
-    private fun submittingMarkerObserver(status: Boolean) {
+    fun submittingReportObserver(status: Boolean) {
         when (status) {
             true -> {
                 view.dismissAddSheet()
             }
             false -> {
-                view.showSubmitMarkerFailure()
+                view.showSubmitReportFailure()
             }
         }
     }
 
-    private fun connectionStatusObserver(status: Boolean?) {
+    fun connectionStatusObserver(status: Boolean?) {
         when (status) {
             true -> {
                 view.dismissConnectionError()
@@ -343,7 +353,7 @@ class MarkerViewPresenter(
         }
     }
 
-    private fun severityFilterObserver(severity: Severity) {
+    fun severityFilterObserver(severity: Severity) {
         val sharedPreferences = context.getSharedPreferences("preferences", Context.MODE_PRIVATE)
 
         when (model.visibleSeverities.value?.contains(severity)) {
@@ -360,7 +370,7 @@ class MarkerViewPresenter(
         }
     }
 
-    private fun accidentFilterObserver(accident: Accident) {
+    fun accidentFilterObserver(accident: Accident) {
         val sharedPreferences = context.getSharedPreferences("preferences", Context.MODE_PRIVATE)
 
         when (model.visibleAccidentTypes.value?.contains(accident)) {
@@ -377,19 +387,19 @@ class MarkerViewPresenter(
         }
     }
 
-    private fun handleChangesInMarkers(newMarkerList: List<MarkerData>) {
-        model.mapMarkers.keys.filterNot { id -> newMarkerList.any { markerData -> markerData.id == id } }
-            .forEach { id -> model.removeMarkerFromMap.value = id }
+    fun handleChangesInReports(newReportList: List<Report>) {
+        model.mapMarkers.keys.filterNot { id -> newReportList.any { report -> report.id == id } }
+            .forEach { id -> model.removeReportFromMap.value = id }
 
-        newMarkerList.filter { markerData -> model.mapMarkers.containsKey(markerData.id) }
-            .forEach { markerData -> model.updateMarkerOnMap.value = markerData }
+        newReportList.filter { report -> model.mapMarkers.containsKey(report.id) }
+            .forEach { report -> model.updateReportOnMap.value = report }
 
-        newMarkerList.filterNot { markerData -> model.mapMarkers.containsKey(markerData.id) }
-            .forEach { markerData -> model.addMarkerToMap.value = markerData }
+        newReportList.filterNot { report -> model.mapMarkers.containsKey(report.id) }
+            .forEach { report -> model.addReportToMap.value = report }
     }
 
-    private fun handleShownMarker(marker: MarkerData) {
-        val liveData = model.gradeDao.getGradesByMarkerIdAsync(marker.id)
+    fun handleShownReport(report: Report) {
+        val liveData = model.gradeDao.getGradesByReportIdAsync(report.id)
         liveData.observe(context.getLifecycleOwner(), Observer { grades ->
             if (grades.isEmpty()) {
                 model.currentlyShownGrade.value = Grade.UNGRADED

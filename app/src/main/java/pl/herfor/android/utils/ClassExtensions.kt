@@ -8,8 +8,8 @@ import androidx.lifecycle.MediatorLiveData
 import com.google.android.gms.location.DetectedActivity
 import com.google.android.gms.maps.model.LatLng
 import org.threeten.bp.OffsetDateTime
-import pl.herfor.android.objects.MarkerData
 import pl.herfor.android.objects.Point
+import pl.herfor.android.objects.Report
 import pl.herfor.android.objects.enums.Accident
 import pl.herfor.android.objects.enums.Severity
 
@@ -80,7 +80,7 @@ internal fun SharedPreferences.getAccidentTypes(): MutableList<Accident> {
     return accidentTypes.filterNotNull() as MutableList<Accident>
 }
 
-internal fun MarkerData.isVisible(
+internal fun Report.isVisible(
     allowedSeverities: List<Severity>,
     allowedAccidents: List<Accident>
 ): Boolean {

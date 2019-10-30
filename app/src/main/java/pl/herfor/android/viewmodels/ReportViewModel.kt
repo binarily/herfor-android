@@ -6,9 +6,9 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.Transformations
 import androidx.lifecycle.ViewModel
 import com.google.android.gms.maps.model.Marker
-import pl.herfor.android.database.MarkerDatabase
-import pl.herfor.android.objects.MarkerData
-import pl.herfor.android.objects.MarkerGrade
+import pl.herfor.android.database.AppDatabase
+import pl.herfor.android.objects.Report
+import pl.herfor.android.objects.ReportGrade
 import pl.herfor.android.objects.enums.Accident
 import pl.herfor.android.objects.enums.Grade
 import pl.herfor.android.objects.enums.RightButtonMode
@@ -18,25 +18,25 @@ import pl.herfor.android.utils.getAccidentTypes
 import pl.herfor.android.utils.getSeverities
 import kotlin.concurrent.thread
 
-class MarkerViewModel(context: Context) : ViewModel() {
+class ReportViewModel(context: Context) : ViewModel() {
     //Observables
-    val addMarkerToMap: MutableLiveData<MarkerData> by lazy {
-        MutableLiveData<MarkerData>()
+    val addReportToMap: MutableLiveData<Report> by lazy {
+        MutableLiveData<Report>()
     }
-    val removeMarkerFromMap: MutableLiveData<String> by lazy {
+    val removeReportFromMap: MutableLiveData<String> by lazy {
         MutableLiveData<String>()
     }
-    val updateMarkerOnMap: MutableLiveData<MarkerData> by lazy {
-        MutableLiveData<MarkerData>()
+    val updateReportOnMap: MutableLiveData<Report> by lazy {
+        MutableLiveData<Report>()
     }
 
     val connectionStatus: MutableLiveData<Boolean?> by lazy {
         MutableLiveData<Boolean?>()
     }
-    val submittingMarkerStatus: MutableLiveData<Boolean> by lazy {
+    val submittingReportStatus: MutableLiveData<Boolean> by lazy {
         MutableLiveData<Boolean>()
     }
-    val markerFromNotificationStatus: MutableLiveData<String?> by lazy {
+    val reportFromNotificationStatus: MutableLiveData<String?> by lazy {
         MutableLiveData<String?>()
     }
     val gradeSubmissionStatus: MutableLiveData<Boolean> by lazy {
@@ -50,8 +50,8 @@ class MarkerViewModel(context: Context) : ViewModel() {
     val accidentFilterChanged: MutableLiveData<Accident> by lazy {
         MutableLiveData<Accident>()
     }
-    val currentlyShownMarker: MutableLiveData<MarkerData> by lazy {
-        MutableLiveData<MarkerData>()
+    val currentlyShownReport: MutableLiveData<Report> by lazy {
+        MutableLiveData<Report>()
     }
     val currentlyShownGrade: MutableLiveData<Grade> by lazy {
         MutableLiveData<Grade>()
@@ -64,19 +64,19 @@ class MarkerViewModel(context: Context) : ViewModel() {
     }
 
     //All markers
-    val markerDao = MarkerDatabase.getDatabase(context).markerDao()
-    val filteredMarkers by lazy {
+    val reportDao = AppDatabase.getDatabase(context).reportDao()
+    val filteredReports by lazy {
         Transformations.switchMap(
             DoubleTrigger(visibleSeverities, visibleAccidentTypes)
         ) {
-            markerDao.getFiltered(it.first, it.second)
+            reportDao.getFiltered(it.first, it.second)
         }
     }
     //Map of markers on map
     val mapMarkers = HashMap<String, Marker>()
 
     //Grade DAO
-    val gradeDao = MarkerDatabase.getDatabase(context).gradeDao()
+    val gradeDao = AppDatabase.getDatabase(context).gradeDao()
 
     //Settings
     var insideLocationArea = true
@@ -87,21 +87,21 @@ class MarkerViewModel(context: Context) : ViewModel() {
         context.getSharedPreferences("preferences", Context.MODE_PRIVATE)
 
 
-    internal fun threadSafeInsert(markerData: MarkerData) {
+    internal fun threadSafeInsert(report: Report) {
         thread {
-            markerDao.insert(markerData)
+            reportDao.insert(report)
         }
     }
 
-    internal fun threadSafeDelete(markerData: MarkerData) {
+    internal fun threadSafeDelete(report: Report) {
         thread {
-            markerDao.delete(markerData)
+            reportDao.delete(report)
         }
     }
 
-    internal fun threadSafeInsert(markerGrade: MarkerGrade) {
+    internal fun threadSafeInsert(reportGrade: ReportGrade) {
         thread {
-            gradeDao.insert(markerGrade)
+            gradeDao.insert(reportGrade)
         }
     }
 

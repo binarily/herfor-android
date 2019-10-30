@@ -16,15 +16,15 @@ class Constants {
         const val CHIP_ID_KEY = "chipId"
         const val NOTIFICATION_MESSAGE_SEVERITY_KEY = "severity"
         const val NOTIFICATION_MESSAGE_ID_KEY = "id"
-        const val NOTIFICATION_MESSAGE_MARKER_KEY = "marker"
+        const val NOTIFICATION_MESSAGE_REPORT_KEY = "report"
         const val NOTIFICATION_MESSAGE_LATITUDE_KEY = "latitude"
         const val NOTIFICATION_MESSAGE_LONGITUDE_KEY = "longitude"
-        const val INTENT_MARKER_ID_KEY = "markerId"
+        const val INTENT_REPORT_ID_KEY = "reportId"
 
         const val NOTIFICATION_MESSAGE_ACTION_KEY = "action"
-        const val ACTION_NEW = "marker-new"
-        const val ACTION_UPDATE = "marker-update"
-        const val ACTION_REMOVE = "marker-remove"
+        const val ACTION_NEW = "report-new"
+        const val ACTION_UPDATE = "report-update"
+        const val ACTION_REMOVE = "report-remove"
 
         val TRANSITIONS = listOf<ActivityTransition>(
             ActivityTransition.Builder().setActivityType(DetectedActivity.ON_FOOT)

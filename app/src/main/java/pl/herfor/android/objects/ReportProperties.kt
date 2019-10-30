@@ -4,10 +4,11 @@ import androidx.room.ColumnInfo
 import androidx.room.Ignore
 import org.threeten.bp.OffsetDateTime
 import pl.herfor.android.objects.enums.Accident
+import pl.herfor.android.objects.enums.NotificationStatus
 import pl.herfor.android.objects.enums.Severity
 import java.util.*
 
-data class MarkerProperties(
+data class ReportProperties(
     val creationDate: OffsetDateTime = OffsetDateTime.now(),
     val modificationDate: OffsetDateTime = OffsetDateTime.now(),
     val accident: Accident,

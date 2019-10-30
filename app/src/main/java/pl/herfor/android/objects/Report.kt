@@ -4,9 +4,9 @@ import androidx.room.Embedded
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "markers")
-data class MarkerData(
+@Entity(tableName = "reports")
+data class Report(
     @PrimaryKey var id: String,
     @Embedded var location: Point,
-    @Embedded var properties: MarkerProperties
+    @Embedded var properties: ReportProperties
 )
