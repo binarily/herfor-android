@@ -12,14 +12,14 @@ import com.google.android.gms.location.Geofence
 import com.google.android.gms.location.GeofencingEvent
 import org.koin.core.KoinComponent
 import org.koin.core.inject
-import pl.herfor.android.contexts.AppContext
 import pl.herfor.android.modules.NotificationGeofenceModule
+import pl.herfor.android.modules.PreferencesModule
 import pl.herfor.android.utils.Constants
 import pl.herfor.android.workers.NotificationWorker
 
 class GeofencingService : IntentService("GeofencingService"), KoinComponent {
-    val context: AppContext by inject()
     val notificationGeofence: NotificationGeofenceModule by inject()
+    val preferences: PreferencesModule by inject()
 
     companion object {
         const val GEOFENCE_HOME = "home"
@@ -61,17 +61,11 @@ class GeofencingService : IntentService("GeofencingService"), KoinComponent {
     }
 
     private fun turnOffNotifications() {
-        context.getSharedPreferences()
-            .edit()
-            .putBoolean("displayNotifications", false)
-            .apply()
+        preferences.setSilentZoneNotificationCondition(false)
     }
 
     private fun turnOnNotifications() {
-        context.getSharedPreferences()
-            .edit()
-            .putBoolean("displayNotifications", true)
-            .apply()
+        preferences.setSilentZoneNotificationCondition(true)
     }
 
     private fun triggerNotificationCheck() {

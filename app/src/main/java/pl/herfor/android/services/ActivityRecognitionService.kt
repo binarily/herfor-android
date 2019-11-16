@@ -4,18 +4,16 @@ import android.app.IntentService
 import android.content.Intent
 import android.util.Log
 import com.google.android.gms.location.ActivityRecognitionResult
-import pl.herfor.android.contexts.AppContext
+import org.koin.android.ext.android.inject
+import pl.herfor.android.modules.PreferencesModule
 
 class ActivityRecognitionService : IntentService("ActivityRecognitionService") {
+    private val preferences: PreferencesModule by inject()
 
     override fun onHandleIntent(intent: Intent?) {
         if (ActivityRecognitionResult.hasResult(intent)) {
-            val context = AppContext(applicationContext)
             val result = ActivityRecognitionResult.extractResult(intent)
-            context.getSharedPreferences()
-                .edit()
-                .putInt("currentActivity", result.mostProbableActivity.type)
-                .apply()
+            preferences.setCurrentActivity(result.mostProbableActivity.type)
             Log.d(
                 this.javaClass.name,
                 "Current most probable activity: ${result.mostProbableActivity}"

@@ -9,7 +9,7 @@ import pl.herfor.android.objects.enums.Accident
 import pl.herfor.android.objects.enums.Severity
 import pl.herfor.android.objects.enums.SilentZone
 
-class PreferencesModule(private val context: ContextRepository) : KoinComponent {
+class PreferencesModule(context: ContextRepository) : KoinComponent {
 
     private val sharedPreferences = context.getSharedPreferences()
 
@@ -82,6 +82,12 @@ class PreferencesModule(private val context: ContextRepository) : KoinComponent 
         return sharedPreferences.getInt("currentActivity", DetectedActivity.STILL)
     }
 
+    fun setCurrentActivity(activity: Int) {
+        sharedPreferences.edit()
+            .putInt("currentActivity", activity)
+            .apply()
+    }
+
     fun getSilentZoneData(silentZone: SilentZone): SilentZoneData {
         return SilentZoneData(
             sharedPreferences.getBoolean("silentZone.${silentZone.name}", false),
@@ -95,7 +101,7 @@ class PreferencesModule(private val context: ContextRepository) : KoinComponent 
     }
 
     fun setSilentZoneData(silentZone: SilentZone, silentZoneData: SilentZoneData) {
-        context.getSharedPreferences().edit()
+        sharedPreferences.edit()
             .putBoolean("silentZone.${silentZone.name}", silentZoneData.enabled)
             .putString("silentZone.${silentZone.name}.location", silentZoneData.location.toString())
             .putString("silentZone.${silentZone.name}.locationName", silentZoneData.locationName)

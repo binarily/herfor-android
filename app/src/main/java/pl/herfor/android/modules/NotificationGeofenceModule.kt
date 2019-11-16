@@ -1,7 +1,6 @@
 package pl.herfor.android.modules
 
 import android.location.Location
-import com.google.android.gms.location.DetectedActivity
 import com.google.android.gms.location.Geofence
 import com.google.android.gms.location.GeofencingRequest
 import org.koin.core.KoinComponent
@@ -13,11 +12,10 @@ import pl.herfor.android.utils.toDetectedActivityDistance
 class NotificationGeofenceModule : KoinComponent {
 
     private val context: ContextRepository by inject()
+    private val preferences: PreferencesModule by inject()
 
     fun registerFullGeofence() {
-        val radius = context.getSharedPreferences()
-            .getInt("currentActivity", DetectedActivity.STILL)
-            .toDetectedActivityDistance()
+        val radius = preferences.getCurrentActivity().toDetectedActivityDistance()
         registerGeofence(radius)
     }
 
