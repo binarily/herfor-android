@@ -11,9 +11,6 @@ import pl.herfor.android.workers.NotificationWorker
 class NotificationService : FirebaseMessagingService() {
     override fun onMessageReceived(p0: RemoteMessage) {
         val workData = workDataOf(*p0.data.toList().toTypedArray())
-        //TODO: read action tag here
-        //Depending on it, push stuff towards a proper worker
-        //(will be used in geofencing broadcast receiver, where we'll push stuff towards proper worker)
         val notificationWorkRequest = OneTimeWorkRequestBuilder<NotificationWorker>()
             .setInputData(workData)
             .addTag(Constants.NOTIFICATION_WORKER_TAG)

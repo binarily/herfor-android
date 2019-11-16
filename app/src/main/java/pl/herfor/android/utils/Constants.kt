@@ -25,6 +25,7 @@ class Constants {
         const val ACTION_NEW = "report-new"
         const val ACTION_UPDATE = "report-update"
         const val ACTION_REMOVE = "report-remove"
+        const val ACTION_REFRESH = "report-refresh"
 
         val TRANSITIONS = listOf<ActivityTransition>(
             ActivityTransition.Builder().setActivityType(DetectedActivity.ON_FOOT)

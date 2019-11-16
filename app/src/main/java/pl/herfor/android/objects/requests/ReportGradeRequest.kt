@@ -4,6 +4,7 @@ import pl.herfor.android.objects.Point
 import pl.herfor.android.objects.enums.Grade
 
 data class ReportGradeRequest(
+    var userId: String,
     var reportId: String,
     var location: Point,
     var grade: Grade

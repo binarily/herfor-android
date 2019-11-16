@@ -34,4 +34,7 @@
     <string name="irrelevant_button_string">Not relevant</string>
     <string name="grade_error_toast">Could not grade the report. Try again later.</string>
     <string name="grade_thanks_toast">Thanks for your input - you\'re making this service more accurate.</string>
+    <string name="silent_zones_header">Set up and manage silent zones</string>
+    <string name="silent_zone_initial">Tap to set up</string>
+    <string name="silent_zones_set">%s - tap to remove</string>
 </resources>

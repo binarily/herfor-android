@@ -42,6 +42,6 @@ interface AppContract {
 
         fun seekPermissions(checkLocation: Boolean)
 
-        fun displayReportFromNotifications(id: String?)
+        fun displayReportFromNotifications(id: String)
     }
 }

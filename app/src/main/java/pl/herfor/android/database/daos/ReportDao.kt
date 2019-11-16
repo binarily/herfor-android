@@ -1,4 +1,4 @@
-package pl.herfor.android.interfaces
+package pl.herfor.android.database.daos
 
 import androidx.lifecycle.LiveData
 import androidx.room.*

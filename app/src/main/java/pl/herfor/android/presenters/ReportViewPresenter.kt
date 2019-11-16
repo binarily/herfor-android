@@ -21,16 +21,19 @@ import com.google.android.gms.location.ActivityTransitionRequest
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.firebase.messaging.FirebaseMessaging
+import org.koin.core.KoinComponent
+import org.koin.core.inject
 import pl.herfor.android.R
 import pl.herfor.android.interfaces.AppContract
 import pl.herfor.android.interfaces.ContextRepository
+import pl.herfor.android.modules.LiveDataModule
+import pl.herfor.android.modules.NotificationGeofenceModule
+import pl.herfor.android.modules.PreferencesModule
+import pl.herfor.android.modules.SilentZoneGeofenceModule
 import pl.herfor.android.objects.Point
 import pl.herfor.android.objects.Report
 import pl.herfor.android.objects.ReportProperties
-import pl.herfor.android.objects.enums.Accident
-import pl.herfor.android.objects.enums.Grade
-import pl.herfor.android.objects.enums.RightButtonMode
-import pl.herfor.android.objects.enums.Severity
+import pl.herfor.android.objects.enums.*
 import pl.herfor.android.objects.requests.ReportAddRequest
 import pl.herfor.android.objects.requests.ReportGradeRequest
 import pl.herfor.android.objects.requests.ReportSearchRequest
@@ -43,68 +46,94 @@ import pl.herfor.android.utils.toPoint
 import pl.herfor.android.viewmodels.ReportViewModel
 
 class ReportViewPresenter(
-    private val model: ReportViewModel, private val view: AppContract.View,
-    private val context: ContextRepository, private val repository: RetrofitRepository
-) : AppContract.Presenter {
+    private val view: AppContract.View,
+    private val model: ReportViewModel,
+    private val context: ContextRepository
+) : AppContract.Presenter, KoinComponent {
+    private val repository: RetrofitRepository by inject()
+    private val notificationGeofence: NotificationGeofenceModule by inject()
+    private val silentZoneGeofence: SilentZoneGeofenceModule by inject()
+    private val preferences: PreferencesModule by inject()
+    private val liveData: LiveDataModule by inject()
+
     override fun start() {
-        if (model.started) {
+        if (liveData.started) {
             return
         }
-
-        model.addReportToMap.observe(context.getLifecycleOwner(),
-            Observer { report -> addReportToMapObserver(report) })
-        model.removeReportFromMap.observe(context.getLifecycleOwner(),
-            Observer { report -> removeReportFromMapObserver(report) })
-        model.updateReportOnMap.observe(context.getLifecycleOwner(),
-            Observer { report -> updateReportOnMapObserver(report) })
         model.filteredReports.observe(
             context.getLifecycleOwner(),
             Observer { newReportList -> handleChangesInReports(newReportList) })
-        model.submittingReportStatus.observe(context.getLifecycleOwner(),
-            Observer { status -> submittingReportObserver(status) })
-        model.connectionStatus.observe(context.getLifecycleOwner(),
-            Observer { status -> connectionStatusObserver(status) })
+        model.silentZoneToggled.observe(context.getLifecycleOwner(),
+            Observer { zone -> handleSilentZoneChange(zone) })
+        model.currentlyShownReport.observe(context.getLifecycleOwner(),
+            Observer { report -> handleShownReport(report) })
         model.severityFilterChanged.observe(context.getLifecycleOwner(),
             Observer { severityType -> severityFilterObserver(severityType) })
         model.accidentFilterChanged.observe(context.getLifecycleOwner(),
             Observer { accidentType -> accidentFilterObserver(accidentType) })
-        model.reportFromNotificationStatus.observe(
+
+        liveData.addReportToMap.observe(
+            context.getLifecycleOwner(),
+            Observer { report -> addReportToMapObserver(report) })
+        liveData.removeReportFromMap.observe(
+            context.getLifecycleOwner(),
+            Observer { report -> removeReportFromMapObserver(report) })
+        liveData.updateReportOnMap.observe(
+            context.getLifecycleOwner(),
+            Observer { report -> updateReportOnMapObserver(report) })
+        liveData.submittingReportStatus.observe(
+            context.getLifecycleOwner(),
+            Observer { status -> submittingReportObserver(status) })
+        liveData.connectionStatus.observe(
+            context.getLifecycleOwner(),
+            Observer { status -> connectionStatusObserver(status) })
+        liveData.reportFromNotificationStatus.observe(
             context.getLifecycleOwner(),
             Observer { status -> reportFromNotificationObserver(status) }
         )
-        model.currentlyShownReport.observe(context.getLifecycleOwner(),
-            Observer { report -> handleShownReport(report) })
+        liveData.registrationId.observe(context.getLifecycleOwner(),
+            Observer { registrationId -> preferences.setUserId(registrationId) })
 
         createNotificationChannel()
-        FirebaseMessaging.getInstance().subscribeToTopic("report-new")
-        FirebaseMessaging.getInstance().subscribeToTopic("report-update")
-        FirebaseMessaging.getInstance().subscribeToTopic("report-remove")
+        registerToNotifications()
+        requestActivityUpdates()
+        rebuildGeofences()
 
-        createActivityRequest()
-
-        model.started = true
+        liveData.started = true
     }
 
     override fun stop() {
-        model.addReportToMap.removeObservers(context.getLifecycleOwner())
-        model.removeReportFromMap.removeObservers(context.getLifecycleOwner())
-        model.updateReportOnMap.removeObservers(context.getLifecycleOwner())
-        model.submittingReportStatus.removeObservers(context.getLifecycleOwner())
-        model.connectionStatus.removeObservers(context.getLifecycleOwner())
+        model.filteredReports.removeObservers(context.getLifecycleOwner())
         model.accidentFilterChanged.removeObservers(context.getLifecycleOwner())
         model.severityFilterChanged.removeObservers(context.getLifecycleOwner())
-        model.reportFromNotificationStatus.removeObservers(context.getLifecycleOwner())
         model.currentlyShownReport.removeObservers(context.getLifecycleOwner())
+        model.silentZoneToggled.removeObservers(context.getLifecycleOwner())
 
-        model.started = false
+        liveData.addReportToMap.removeObservers(context.getLifecycleOwner())
+        liveData.removeReportFromMap.removeObservers(context.getLifecycleOwner())
+        liveData.updateReportOnMap.removeObservers(context.getLifecycleOwner())
+        liveData.submittingReportStatus.removeObservers(context.getLifecycleOwner())
+        liveData.connectionStatus.removeObservers(context.getLifecycleOwner())
+        liveData.reportFromNotificationStatus.removeObservers(context.getLifecycleOwner())
+        liveData.registrationId.removeObservers(context.getLifecycleOwner())
+
+        liveData.started = false
     }
 
     @SuppressLint("MissingPermission")
     override fun submitReport(reportProperties: ReportProperties) {
+        val userId = preferences.getUserId()
+        if (userId == null) {
+            repository.register()
+            view.showSubmitReportFailure()
+            return
+        }
+
         if (checkForLocationPermission()) {
             context.getCurrentLocation().addOnSuccessListener { location: Location? ->
                 if (location != null) {
                     val report = ReportAddRequest(
+                        userId,
                         location.toPoint(),
                         reportProperties
                     )
@@ -122,10 +151,18 @@ class ReportViewPresenter(
     }
 
     override fun submitGrade(grade: Grade) {
+        val userId = preferences.getUserId()
+        if (userId == null) {
+            repository.register()
+            liveData.gradeSubmissionStatus.value = false
+            return
+        }
+
         if (checkForLocationPermission()) {
             context.getCurrentLocation().addOnSuccessListener {
                 val request =
                     ReportGradeRequest(
+                        userId,
                         model.currentlyShownReport.value!!.id,
                         it.toPoint(),
                         grade
@@ -138,9 +175,9 @@ class ReportViewPresenter(
     }
 
     override fun loadReportsToMap(northEast: Point, southWest: Point) {
-        val currentReports = model.reportDao.getFromLocation(
+        val currentReports = context.getReportDao().getFromLocation(
             northEast.longitude, southWest.longitude,
-            northEast.latitude, southWest.latitude
+            southWest.latitude, northEast.latitude
         )
         currentReports.observe(context.getLifecycleOwner(), Observer {
             if (it.isEmpty()) {
@@ -216,12 +253,11 @@ class ReportViewPresenter(
         }
     }
 
-    override fun displayReportFromNotifications(id: String?) {
-        if (id != null) {
-            repository.loadReport(id)
-        }
+    override fun displayReportFromNotifications(id: String) {
+        repository.loadReport(id)
     }
 
+    //TODO: to context
     fun checkForPlayServices() {
         val playServicesCode =
             GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(context.getContext())
@@ -231,6 +267,7 @@ class ReportViewPresenter(
         }
     }
 
+    //TODO: to context
     fun checkForLocationPermission(): Boolean {
         return ContextCompat.checkSelfPermission(
             context.getContext(),
@@ -238,6 +275,7 @@ class ReportViewPresenter(
         ) == PackageManager.PERMISSION_GRANTED
     }
 
+    //TODO: to notification module
     fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val name = context.getContext().getString(R.string.channel_name)
@@ -280,7 +318,7 @@ class ReportViewPresenter(
         }
     }
 
-    fun createActivityRequest() {
+    fun requestActivityUpdates() {
         val pendingIntent = PendingIntent.getService(
             context.getContext(),
             0,
@@ -293,6 +331,26 @@ class ReportViewPresenter(
                 ActivityTransitionRequest(Constants.TRANSITIONS),
                 pendingIntent
             )
+    }
+
+    fun rebuildGeofences() {
+        for (silentZone in SilentZone.values()) {
+            when (silentZone) {
+                SilentZone.HOME ->
+                    silentZoneGeofence.reregisterZone(silentZone, model.homeSilentZoneName)
+                SilentZone.WORK ->
+                    silentZoneGeofence.reregisterZone(silentZone, model.workSilentZoneName)
+            }
+        }
+
+        notificationGeofence.registerInitialGeofence()
+    }
+
+    //TODO: to notification module
+    fun registerToNotifications() {
+        FirebaseMessaging.getInstance().subscribeToTopic("report-new")
+        FirebaseMessaging.getInstance().subscribeToTopic("report-update")
+        FirebaseMessaging.getInstance().subscribeToTopic("report-remove")
     }
 
     //OBSERVERS
@@ -348,65 +406,77 @@ class ReportViewPresenter(
             }
             false -> {
                 view.showConnectionError()
-                model.connectionStatus.value = null
+                liveData.connectionStatus.value = null
             }
         }
     }
 
     fun severityFilterObserver(severity: Severity) {
-        val sharedPreferences = context.getSharedPreferences("preferences", Context.MODE_PRIVATE)
 
         when (model.visibleSeverities.value?.contains(severity)) {
             true -> {
-                sharedPreferences.edit().putBoolean("severity.${severity.name}", false)
-                    .apply()
+                preferences.setSeverity(severity, false)
                 model.visibleSeverities.value?.remove(severity)
             }
             false -> {
-                sharedPreferences.edit().putBoolean("severity.${severity.name}", true)
-                    .apply()
+                preferences.setSeverity(severity, true)
                 model.visibleSeverities.value?.add(severity)
             }
         }
     }
 
     fun accidentFilterObserver(accident: Accident) {
-        val sharedPreferences = context.getSharedPreferences("preferences", Context.MODE_PRIVATE)
-
-        when (model.visibleAccidentTypes.value?.contains(accident)) {
+        when (model.visibleAccidents.value?.contains(accident)) {
             true -> {
-                sharedPreferences.edit().putBoolean("accident.${accident.name}", false)
-                    .apply()
-                model.visibleAccidentTypes.value?.remove(accident)
+                preferences.setAccident(accident, false)
+                model.visibleAccidents.value?.remove(accident)
             }
             false -> {
-                sharedPreferences.edit().putBoolean("accident.${accident.name}", true)
-                    .apply()
-                model.visibleAccidentTypes.value?.add(accident)
+                preferences.setAccident(accident, true)
+                model.visibleAccidents.value?.add(accident)
             }
         }
     }
 
     fun handleChangesInReports(newReportList: List<Report>) {
         model.mapMarkers.keys.filterNot { id -> newReportList.any { report -> report.id == id } }
-            .forEach { id -> model.removeReportFromMap.value = id }
+            .forEach { id -> liveData.removeReportFromMap.value = id }
 
         newReportList.filter { report -> model.mapMarkers.containsKey(report.id) }
-            .forEach { report -> model.updateReportOnMap.value = report }
+            .forEach { report -> liveData.updateReportOnMap.value = report }
 
         newReportList.filterNot { report -> model.mapMarkers.containsKey(report.id) }
-            .forEach { report -> model.addReportToMap.value = report }
+            .forEach { report -> liveData.addReportToMap.value = report }
     }
 
     fun handleShownReport(report: Report) {
-        val liveData = model.gradeDao.getGradesByReportIdAsync(report.id)
-        liveData.observe(context.getLifecycleOwner(), Observer { grades ->
+        val grade = context.getGradeDao().getGradesByReportIdAsync(report.id)
+        grade.observe(context.getLifecycleOwner(), Observer { grades ->
             if (grades.isEmpty()) {
                 model.currentlyShownGrade.value = Grade.UNGRADED
             } else {
                 model.currentlyShownGrade.value = grades[0].grade
             }
-            liveData.removeObservers(context.getLifecycleOwner())
+            grade.removeObservers(context.getLifecycleOwner())
         })
+    }
+
+    fun handleSilentZoneChange(silentZone: SilentZone) {
+        if (silentZoneGeofence.isRunning(silentZone)) {
+            silentZoneGeofence.disableZone(silentZone)
+            when (silentZone) {
+                SilentZone.HOME ->
+                    model.homeSilentZoneName.value = ""
+                SilentZone.WORK ->
+                    model.workSilentZoneName.value = ""
+            }
+        } else {
+            when (silentZone) {
+                SilentZone.HOME ->
+                    silentZoneGeofence.enableZone(silentZone, model.homeSilentZoneName)
+                SilentZone.WORK ->
+                    silentZoneGeofence.enableZone(silentZone, model.workSilentZoneName)
+            }
+        }
     }
 }

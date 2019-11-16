@@ -1,12 +1,12 @@
 package pl.herfor.android.utils
 
-import android.content.SharedPreferences
 import android.location.Location
 import android.text.format.DateUtils
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MediatorLiveData
 import com.google.android.gms.location.DetectedActivity
 import com.google.android.gms.maps.model.LatLng
+import com.google.maps.android.SphericalUtil
 import org.threeten.bp.OffsetDateTime
 import pl.herfor.android.objects.Point
 import pl.herfor.android.objects.Report
@@ -47,39 +47,6 @@ internal fun String.toRelativeDateString(date: OffsetDateTime): String {
     )
 }
 
-internal fun SharedPreferences.getSeverities(): MutableList<Severity> {
-    val severities = arrayOf(
-        if (this.getBoolean(
-                "severity.GREEN",
-                false
-            )
-        ) Severity.GREEN else null,
-        if (this.getBoolean(
-                "severity.YELLOW",
-                true
-            )
-        ) Severity.YELLOW else null,
-        if (this.getBoolean("severity.RED", true)) Severity.RED else null
-    )
-    return severities.toList().filterNotNull() as MutableList<Severity>
-
-}
-
-internal fun SharedPreferences.getAccidentTypes(): MutableList<Accident> {
-    val accidentTypes = mutableListOf<Accident?>()
-
-    for (accidentType in Accident.values()) {
-        accidentTypes.add(
-            if (this.getBoolean(
-                    "accident.${accidentType.name}",
-                    true
-                )
-            ) accidentType else null
-        )
-    }
-    return accidentTypes.filterNotNull() as MutableList<Accident>
-}
-
 internal fun Report.isVisible(
     allowedSeverities: List<Severity>,
     allowedAccidents: List<Accident>
@@ -88,22 +55,22 @@ internal fun Report.isVisible(
             && allowedAccidents.contains(this.properties.accident)
 }
 
-internal fun Int.toDetectedActivityDistance(): Long {
+internal fun Int.toDetectedActivityDistance(): Float {
     when (this) {
         DetectedActivity.STILL -> {
-            return 100
+            return 200.0f
         }
         DetectedActivity.ON_FOOT, DetectedActivity.WALKING, DetectedActivity.RUNNING -> {
-            return 200
+            return 400.0f
         }
         DetectedActivity.ON_BICYCLE -> {
-            return 400
+            return 800.0f
         }
         DetectedActivity.IN_VEHICLE -> {
-            return 800
+            return 1600.0f
         }
         else -> {
-            return 100
+            return 200.0f
         }
     }
 }
@@ -114,4 +81,16 @@ internal class DoubleTrigger<A, B>(a: LiveData<A>, b: LiveData<B>) :
         addSource(a) { value = it to b.value }
         addSource(b) { value = a.value to it }
     }
+}
+
+internal fun Location.toNorthEast(away: Double): Point {
+    val north = SphericalUtil.computeOffset(this.toLatLng(), away, 0.0)
+    val northEast = SphericalUtil.computeOffset(north, away, 270.0).toPoint()
+    return northEast
+}
+
+internal fun Location.toSouthWest(away: Double): Point {
+    val south = SphericalUtil.computeOffset(this.toLatLng(), away, 180.0)
+    val southWest = SphericalUtil.computeOffset(south, away, 90.0).toPoint()
+    return southWest
 }

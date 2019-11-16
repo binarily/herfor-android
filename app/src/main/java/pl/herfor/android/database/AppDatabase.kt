@@ -5,8 +5,8 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
-import pl.herfor.android.interfaces.ReportDao
-import pl.herfor.android.interfaces.ReportGradeDao
+import pl.herfor.android.database.daos.ReportDao
+import pl.herfor.android.database.daos.ReportGradeDao
 import pl.herfor.android.objects.Report
 import pl.herfor.android.objects.ReportGrade
 
@@ -21,7 +21,7 @@ abstract class AppDatabase : RoomDatabase() {
             if (INSTANCE == null) {
                 INSTANCE = Room.databaseBuilder(
                     context.applicationContext,
-                    AppDatabase::class.java, "markers.db"
+                    AppDatabase::class.java, "reports.db"
                 )
                     .enableMultiInstanceInvalidation()
                     .build()

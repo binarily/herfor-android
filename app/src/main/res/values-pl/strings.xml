@@ -31,4 +31,7 @@
     <string name="relevant_button_string">Ważne</string>
     <string name="grade_error_toast">Nie można było ocenić zgłoszenia. Spróbuj ponownie w aplikacji.</string>
     <string name="grade_thanks_toast">Dziękujemy za ocenę - dzięki tobie jesteśmy dokładniejsi.</string>
+    <string name="silent_zone_initial">Dotknij, aby ustawić</string>
+    <string name="silent_zones_header">Ustaw i zarządzaj cichymi strefami</string>
+    <string name="silent_zones_set">%s - dotknij, aby usunąć</string>
 </resources>

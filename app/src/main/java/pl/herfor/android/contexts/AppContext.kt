@@ -9,14 +9,17 @@ import android.location.Geocoder
 import android.location.Location
 import android.widget.Toast
 import androidx.lifecycle.LifecycleOwner
+import com.google.android.gms.location.GeofencingClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.tasks.Task
 import pl.herfor.android.R
 import pl.herfor.android.database.AppDatabase
+import pl.herfor.android.database.daos.ReportDao
+import pl.herfor.android.database.daos.ReportGradeDao
 import pl.herfor.android.interfaces.ContextRepository
 import java.io.IOException
 
-class AppContext(private var context: Context) : ContextRepository {
+class AppContext(private val context: Context) : ContextRepository {
     private var geocoder = Geocoder(context)
     private var locationProviderClient = LocationServices.getFusedLocationProviderClient(context)
 
@@ -53,8 +56,8 @@ class AppContext(private var context: Context) : ContextRepository {
         Toast.makeText(context, resourceId, duration).show()
     }
 
-    override fun getSharedPreferences(name: String, mode: Int): SharedPreferences {
-        return context.getSharedPreferences(name, mode)
+    override fun getSharedPreferences(): SharedPreferences {
+        return context.getSharedPreferences("preferences", Context.MODE_PRIVATE)
     }
 
     override fun getDatabase(): AppDatabase {
@@ -64,4 +67,17 @@ class AppContext(private var context: Context) : ContextRepository {
     override fun getString(id: Int): String {
         return context.getString(id)
     }
+
+    override fun getGeofencingClient(): GeofencingClient {
+        return LocationServices.getGeofencingClient(context)
+    }
+
+    override fun getReportDao(): ReportDao {
+        return getDatabase().reportDao()
+    }
+
+    override fun getGradeDao(): ReportGradeDao {
+        return getDatabase().gradeDao()
+    }
+
 }

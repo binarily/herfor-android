@@ -1,4 +1,4 @@
-package pl.herfor.android.activities
+package pl.herfor.android.views
 
 import android.Manifest
 import android.annotation.SuppressLint
@@ -10,7 +10,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Observer
-import androidx.lifecycle.ViewModelProvider
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.SupportMapFragment
@@ -33,17 +32,20 @@ import com.karumi.dexter.listener.single.SnackbarOnDeniedPermissionListener
 import kotlinx.android.synthetic.main.fragment_maps.*
 import kotlinx.android.synthetic.main.sheet_add.*
 import kotlinx.android.synthetic.main.sheet_details.*
+import org.koin.android.ext.android.inject
+import org.koin.android.scope.currentScope
+import org.koin.android.viewmodel.ext.android.viewModel
+import org.koin.core.parameter.parametersOf
 import pl.herfor.android.R
-import pl.herfor.android.contexts.AppContext
 import pl.herfor.android.interfaces.AppContract
+import pl.herfor.android.interfaces.ContextRepository
+import pl.herfor.android.modules.LiveDataModule
 import pl.herfor.android.objects.Report
 import pl.herfor.android.objects.ReportProperties
 import pl.herfor.android.objects.enums.Accident
 import pl.herfor.android.objects.enums.Grade
 import pl.herfor.android.objects.enums.RightButtonMode
 import pl.herfor.android.objects.enums.SheetVisibility
-import pl.herfor.android.presenters.ReportViewPresenter
-import pl.herfor.android.retrofits.RetrofitRepository
 import pl.herfor.android.utils.Constants
 import pl.herfor.android.utils.Constants.Companion.BUTTON_ANIMATION_DURATION
 import pl.herfor.android.utils.Constants.Companion.CHIP_ID_KEY
@@ -61,9 +63,10 @@ class MapsActivity : AppCompatActivity(), AppContract.View {
     private lateinit var detailsSheet: BottomSheetBehavior<ConstraintLayout>
     private lateinit var addSheet: BottomSheetBehavior<ConstraintLayout>
     private lateinit var snackbar: Snackbar
-    private lateinit var presenter: AppContract.Presenter
-    private lateinit var model: ReportViewModel
-    private lateinit var context: AppContext
+    private val presenter: AppContract.Presenter by inject { parametersOf(this, model, context) }
+    private val model: ReportViewModel by viewModel()
+    private val liveData: LiveDataModule by inject()
+    private val context: ContextRepository by currentScope.inject { parametersOf(this) }
     private lateinit var filterSheet: FilterSheetFragment
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -72,15 +75,6 @@ class MapsActivity : AppCompatActivity(), AppContract.View {
 
         setContentView(R.layout.activity_main)
         activityView = findViewById(R.id.activity_main)
-        context = AppContext(this)
-
-        model = ViewModelProvider(this)[ReportViewModel::class.java]
-        presenter = ReportViewPresenter(
-            model,
-            this,
-            AppContext(this),
-            RetrofitRepository(model)
-        )
 
         model.currentlyShownReport.observe(this, Observer { report -> handleShowReport(report) })
         model.currentlyShownGrade.observe(this, Observer { grade -> handleGrade(grade) })
@@ -263,6 +257,7 @@ class MapsActivity : AppCompatActivity(), AppContract.View {
         super.onDestroy()
         presenter.stop()
         model.currentlyShownReport.removeObservers(this)
+        model.currentlyShownGrade.removeObservers(this)
     }
 
     //Private functions
@@ -288,7 +283,7 @@ class MapsActivity : AppCompatActivity(), AppContract.View {
 
         if (intent.extras != null && intent.extras.containsKey(Constants.INTENT_REPORT_ID_KEY)) {
             intent?.extras?.remove(Constants.INTENT_REPORT_ID_KEY)
-            presenter.displayReportFromNotifications(intent?.extras?.getString(Constants.INTENT_REPORT_ID_KEY))
+            presenter.displayReportFromNotifications(intent.extras.getString(Constants.INTENT_REPORT_ID_KEY))
         }
     }
 

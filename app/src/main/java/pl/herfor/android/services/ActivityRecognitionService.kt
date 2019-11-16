@@ -1,7 +1,6 @@
 package pl.herfor.android.services
 
 import android.app.IntentService
-import android.content.Context
 import android.content.Intent
 import android.util.Log
 import com.google.android.gms.location.ActivityRecognitionResult
@@ -13,7 +12,7 @@ class ActivityRecognitionService : IntentService("ActivityRecognitionService") {
         if (ActivityRecognitionResult.hasResult(intent)) {
             val context = AppContext(applicationContext)
             val result = ActivityRecognitionResult.extractResult(intent)
-            context.getSharedPreferences("preferences", Context.MODE_PRIVATE)
+            context.getSharedPreferences()
                 .edit()
                 .putInt("currentActivity", result.mostProbableActivity.type)
                 .apply()
