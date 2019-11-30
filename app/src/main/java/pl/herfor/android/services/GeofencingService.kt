@@ -12,6 +12,7 @@ import com.google.android.gms.location.Geofence
 import com.google.android.gms.location.GeofencingEvent
 import org.koin.core.KoinComponent
 import org.koin.core.inject
+import pl.herfor.android.modules.LocationModule
 import pl.herfor.android.modules.NotificationGeofenceModule
 import pl.herfor.android.modules.PreferencesModule
 import pl.herfor.android.utils.Constants
@@ -20,6 +21,7 @@ import pl.herfor.android.workers.NotificationWorker
 class GeofencingService : IntentService("GeofencingService"), KoinComponent {
     val notificationGeofence: NotificationGeofenceModule by inject()
     val preferences: PreferencesModule by inject()
+    val location: LocationModule by inject()
 
     companion object {
         const val GEOFENCE_HOME = "home"

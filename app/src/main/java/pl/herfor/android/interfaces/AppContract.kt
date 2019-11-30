@@ -18,10 +18,10 @@ interface AppContract {
         fun setLocationStateForMap(state: Boolean)
         fun showAddSheet()
         fun dismissAddSheet()
-        fun showDetailsSheet(report: Report)
         fun showLocationOnDetailsSheet(location: String)
         fun moveCamera(position: LatLng, animate: Boolean)
         fun setRightButton(rightButtonMode: RightButtonMode, transition: Boolean)
+        fun showToast(textId: Int, length: Int)
 
         fun addReportToMap(report: Report): Marker
     }

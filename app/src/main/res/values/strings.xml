@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name" translatable="false">Obs</string>
+    <string name="app_name" translatable="false">Herfor</string>
     <string name="default_notification_channel_id" translatable="false">herfor-notifications</string>
     <string name="geocoder_error">Connection error</string>
     <string name="geocoder_unknown">Unknown location</string>
@@ -23,7 +23,7 @@
     <string name="pedestrian">Pedestrian</string>
     <string name="add">Add</string>
     <string name="placeholder" translatable="false">...</string>
-    <string name="title_activity_maps" translatable="false">Obs</string>
+    <string name="title_activity_maps" translatable="false">Herfor</string>
     <string name="none_severity">Elapsed</string>
     <string name="distance_string">%d m away from you</string>
     <string name="report_notification_unavailable">The report is not available or it elapsed.</string>

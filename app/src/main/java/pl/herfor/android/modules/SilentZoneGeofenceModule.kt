@@ -6,30 +6,36 @@ import com.google.android.gms.location.Geofence
 import com.google.android.gms.location.GeofencingRequest
 import org.koin.core.KoinComponent
 import org.koin.core.inject
-import pl.herfor.android.interfaces.ContextRepository
 import pl.herfor.android.objects.SilentZoneData
 import pl.herfor.android.objects.enums.SilentZone
-import pl.herfor.android.services.GeofencingService
+import kotlin.concurrent.thread
 
 class SilentZoneGeofenceModule : KoinComponent {
 
-    private val context: ContextRepository by inject()
     private val preferences: PreferencesModule by inject()
+    private val location: LocationModule by inject()
+    private val intent: IntentModule by inject()
 
     fun isRunning(silentZone: SilentZone): Boolean {
         return preferences.getSilentZoneData(silentZone).enabled
     }
 
     fun enableZone(silentZone: SilentZone, display: MutableLiveData<String>) {
-        context.getCurrentLocation().addOnSuccessListener { location ->
-            val locationName = context.getLocationName(location.latitude, location.longitude)
-            createZone(silentZone, SilentZoneData(true, location, locationName), display)
+        thread {
+            val currentLocation = location.getCurrentLocation()
+            if (currentLocation == null) {
+                //TODO: error handling
+                return@thread
+            }
+            val locationName =
+                location.getLocationName(currentLocation.latitude, currentLocation.longitude)
+            createZone(silentZone, SilentZoneData(true, currentLocation, locationName), display)
         }
     }
 
     fun disableZone(silentZone: SilentZone) {
         preferences.setSilentZoneData(silentZone, SilentZoneData.DISABLED)
-        context.getGeofencingClient().removeGeofences(listOf(silentZone.name))
+        location.getGeofencingClient().removeGeofences(listOf(silentZone.name))
     }
 
     fun reregisterZone(silentZone: SilentZone, display: MutableLiveData<String>) {
@@ -43,10 +49,10 @@ class SilentZoneGeofenceModule : KoinComponent {
         silentZone: SilentZone,
         silentZoneData: SilentZoneData, display: MutableLiveData<String>
     ) {
-        context.getGeofencingClient()
+        location.getGeofencingClient()
             .addGeofences(
                 createGeofence(silentZone, silentZoneData.location!!),
-                GeofencingService.geofencePendingIntent(context.getContext())
+                intent.geofenceIntent()
             )?.run {
                 addOnSuccessListener {
                     preferences.setSilentZoneData(silentZone, silentZoneData)

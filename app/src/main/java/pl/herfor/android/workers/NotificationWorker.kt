@@ -2,41 +2,41 @@ package pl.herfor.android.workers
 
 import android.app.PendingIntent
 import android.content.Context
-import android.content.Intent
 import android.graphics.BitmapFactory
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import com.google.android.gms.tasks.Tasks
 import kotlinx.coroutines.coroutineScope
 import org.koin.core.KoinComponent
 import org.koin.core.inject
 import pl.herfor.android.R
-import pl.herfor.android.contexts.AppContext
+import pl.herfor.android.interfaces.ContextRepository
+import pl.herfor.android.modules.DatabaseModule
 import pl.herfor.android.modules.IntentModule
+import pl.herfor.android.modules.LocationModule
 import pl.herfor.android.modules.PreferencesModule
 import pl.herfor.android.objects.Report
 import pl.herfor.android.objects.enums.NotificationStatus
 import pl.herfor.android.objects.enums.Severity
 import pl.herfor.android.retrofits.RetrofitRepository
-import pl.herfor.android.services.NotificationDismissedService
 import pl.herfor.android.utils.*
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
-import java.util.concurrent.ExecutionException
 import kotlin.math.roundToLong
 import kotlin.random.Random
 
 
 class NotificationWorker(context: Context, workerParams: WorkerParameters) :
     CoroutineWorker(context, workerParams), KoinComponent {
-    private val appContext: AppContext by inject()
+    private val appContext: ContextRepository by inject()
     private val retrofit: RetrofitRepository by inject()
     private val preferences: PreferencesModule by inject()
     private val intents: IntentModule by inject()
+    private val location: LocationModule by inject()
+    private val database: DatabaseModule by inject()
 
     override suspend fun doWork(): Result = coroutineScope {
 
@@ -67,7 +67,7 @@ class NotificationWorker(context: Context, workerParams: WorkerParameters) :
     }
 
     private fun handleNewReport(report: Report) {
-        appContext.getReportDao().insert(report)
+        database.getReportDao().insert(report)
         handleReport(report)
         return
     }
@@ -76,9 +76,9 @@ class NotificationWorker(context: Context, workerParams: WorkerParameters) :
         val id = inputData.getString(Constants.NOTIFICATION_MESSAGE_ID_KEY) ?: return
         val newSeverity = inputData.getString(Constants.NOTIFICATION_MESSAGE_SEVERITY_KEY) ?: return
 
-        val report = appContext.getReportDao().getOne(id).value
+        val report = database.getReportDao().getOne(id).value
         if (report != null) {
-            appContext.getReportDao()
+            database.getReportDao()
                 .updateSeverity(Severity.valueOf(newSeverity), id)
         } else {
             retrofit.loadReport(id, newReportCallback())
@@ -90,14 +90,14 @@ class NotificationWorker(context: Context, workerParams: WorkerParameters) :
         }
 
         val location =
-            appContext.getLocationName(
+            location.getLocationName(
                 report.location.latitude,
                 report.location.longitude
             )
-        val distance = calculateDistance(report, appContext)
+        val distance = calculateDistance(report)
         createNotification(location, distance, report, intents.openAppIntent(id))
 
-        appContext.getReportDao()
+        database.getReportDao()
             .updateNotificationStatus(NotificationStatus.Shown, report.id)
     }
 
@@ -106,7 +106,7 @@ class NotificationWorker(context: Context, workerParams: WorkerParameters) :
             val id = inputData.getString(Constants.NOTIFICATION_MESSAGE_ID_KEY)
             if (id != null) {
                 cancel(id, 0)
-                appContext.getReportDao().deleteById(id)
+                database.getReportDao().deleteById(id)
             }
         }
     }
@@ -114,11 +114,11 @@ class NotificationWorker(context: Context, workerParams: WorkerParameters) :
     private fun handleRefresh() {
         val currentActivity = preferences.getCurrentActivity()
         val radius = currentActivity.toDetectedActivityDistance()
-        val location = Tasks.await(appContext.getCurrentLocation())
+        val location = location.getCurrentLocation() ?: return
         val northEast = location.toNorthEast(radius.toDouble() / 2)
         val southWest = location.toSouthWest(radius.toDouble() / 2)
 
-        val reports = appContext.getReportDao().getFromLocation(
+        val reports = database.getReportDao().getFromLocation(
             northEast.longitude, southWest.longitude,
             southWest.latitude, northEast.latitude
         ).value
@@ -131,25 +131,28 @@ class NotificationWorker(context: Context, workerParams: WorkerParameters) :
     }
 
     private fun handleReport(report: Report) {
-        val distance = calculateDistance(report, appContext)
+        val distance = calculateDistance(report)
         if (!shouldShowNotification(report)) {
             return
         }
 
         val location =
-            appContext.getLocationName(
+            location.getLocationName(
                 report.location.latitude,
                 report.location.longitude
             )
 
         createNotification(location, distance, report, intents.openAppIntent(report.id))
 
-        appContext.getReportDao()
+        database.getReportDao()
             .updateNotificationStatus(NotificationStatus.Shown, report.id)
     }
 
     //Condition methods
     private fun shouldShowNotification(report: Report): Boolean {
+        if (Constants.DEV_MODE) {
+            return true
+        }
         val severities = preferences.getSeverities()
         val accidentTypes = preferences.getAccidents()
         val displayNotifications = preferences.getSilentZoneNotificationCondition()
@@ -179,7 +182,7 @@ class NotificationWorker(context: Context, workerParams: WorkerParameters) :
             }
         }
 
-        val distance = calculateDistance(report, appContext)
+        val distance = calculateDistance(report)
 
         val currentActivity =
             preferences.getCurrentActivity()
@@ -192,14 +195,14 @@ class NotificationWorker(context: Context, workerParams: WorkerParameters) :
     }
 
     private fun alreadyShown(id: String): Boolean {
-        val marker = appContext.getReportDao().getOne(id).value
+        val marker = database.getReportDao().getOne(id).value
             ?: return false
 
         return marker.properties.notificationStatus != NotificationStatus.NotShown
     }
 
     private fun alreadyGraded(id: String): Boolean {
-        val grades = appContext.getGradeDao().getGradesByReportIdSync(id)
+        val grades = database.getGradeDao().getGradesByReportIdSync(id)
         return grades.isNotEmpty()
     }
 
@@ -244,13 +247,7 @@ class NotificationWorker(context: Context, workerParams: WorkerParameters) :
                 .setAutoCancel(true)
                 .build()
 
-        notification.deleteIntent =
-            PendingIntent.getService(
-                appContext.getContext(), 0,
-                Intent(appContext.getContext(), NotificationDismissedService::class.java).apply {
-                    putExtra(Constants.NOTIFICATION_MESSAGE_ID_KEY, marker.id)
-                }, 0
-            )
+        notification.deleteIntent = intents.notificationDeleteIntent(marker.id)
 
         with(NotificationManagerCompat.from(appContext.getContext())) {
             notify(marker.id, 0, notification)
@@ -259,16 +256,10 @@ class NotificationWorker(context: Context, workerParams: WorkerParameters) :
     }
 
     private fun calculateDistance(
-        marker: Report,
-        appContext: AppContext
+        marker: Report
     ): Long {
         val markerLocation = marker.location.toLocation()
-        return try {
-            Tasks.await(appContext.getCurrentLocation())
-                .distanceTo(markerLocation).roundToLong()
-        } catch (e: ExecutionException) {
-            -1L
-        }
+        return location.getCurrentLocation()?.distanceTo(markerLocation)?.roundToLong() ?: -1L
     }
 
     //Callbacks

@@ -1,23 +1,20 @@
 package pl.herfor.android.viewmodels
 
-import android.app.Application
-import android.content.Context
-import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.Transformations
+import androidx.lifecycle.ViewModel
 import com.google.android.gms.maps.model.Marker
 import org.koin.core.KoinComponent
 import org.koin.core.inject
-import pl.herfor.android.database.AppDatabase
+import pl.herfor.android.modules.DatabaseModule
 import pl.herfor.android.modules.PreferencesModule
 import pl.herfor.android.objects.Report
-import pl.herfor.android.objects.ReportGrade
 import pl.herfor.android.objects.enums.*
 import pl.herfor.android.utils.DoubleTrigger
-import kotlin.concurrent.thread
 
-class ReportViewModel(context: Context) : AndroidViewModel(context as Application), KoinComponent {
+class ReportViewModel : ViewModel(), KoinComponent {
     private val preferences: PreferencesModule by inject()
+    private val database: DatabaseModule by inject()
 
     //View observers
     val severityFilterChanged: MutableLiveData<Severity> by lazy {
@@ -26,9 +23,11 @@ class ReportViewModel(context: Context) : AndroidViewModel(context as Applicatio
     val accidentFilterChanged: MutableLiveData<Accident> by lazy {
         MutableLiveData<Accident>()
     }
+    //TODO: this should hold a view model object
     val currentlyShownReport: MutableLiveData<Report> by lazy {
         MutableLiveData<Report>()
     }
+    //TODO: this should hold a view model object
     val currentlyShownGrade: MutableLiveData<Grade> by lazy {
         MutableLiveData<Grade>()
     }
@@ -48,42 +47,21 @@ class ReportViewModel(context: Context) : AndroidViewModel(context as Applicatio
         MutableLiveData<SilentZone>()
     }
 
-    //Grade DAO
-    private val reportDao = AppDatabase.getDatabase(context).reportDao()
-    private val gradeDao = AppDatabase.getDatabase(context).gradeDao()
-
     //All markers
+    //TODO: fix this
     val filteredReports by lazy {
         Transformations.switchMap(
             DoubleTrigger(visibleSeverities, visibleAccidents)
         ) {
-            reportDao.getFiltered(it.first, it.second)
+            database.getReportDao().getFiltered(it.first, it.second)
         }
     }
+
     //Map of markers on map
     val mapMarkers = HashMap<String, Marker>()
 
     //Settings
     var insideLocationArea = true
     var buttonState = RightButtonMode.DISABLED
-
-    //TODO: move to module
-    internal fun threadSafeInsert(report: Report) {
-        thread {
-            reportDao.insert(report)
-        }
-    }
-
-    internal fun threadSafeDelete(report: Report) {
-        thread {
-            reportDao.delete(report)
-        }
-    }
-
-    internal fun threadSafeInsert(reportGrade: ReportGrade) {
-        thread {
-            gradeDao.insert(reportGrade)
-        }
-    }
 
 }

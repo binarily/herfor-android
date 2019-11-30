@@ -39,7 +39,7 @@ import org.koin.core.parameter.parametersOf
 import pl.herfor.android.R
 import pl.herfor.android.interfaces.AppContract
 import pl.herfor.android.interfaces.ContextRepository
-import pl.herfor.android.modules.LiveDataModule
+import pl.herfor.android.modules.LocationModule
 import pl.herfor.android.objects.Report
 import pl.herfor.android.objects.ReportProperties
 import pl.herfor.android.objects.enums.Accident
@@ -65,8 +65,8 @@ class MapsActivity : AppCompatActivity(), AppContract.View {
     private lateinit var snackbar: Snackbar
     private val presenter: AppContract.Presenter by inject { parametersOf(this, model, context) }
     private val model: ReportViewModel by viewModel()
-    private val liveData: LiveDataModule by inject()
     private val context: ContextRepository by currentScope.inject { parametersOf(this) }
+    private val location: LocationModule by inject()
     private lateinit var filterSheet: FilterSheetFragment
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -85,6 +85,7 @@ class MapsActivity : AppCompatActivity(), AppContract.View {
         addSheet = BottomSheetBehavior.from(add_sheet)
         addSheet.state = BottomSheetBehavior.STATE_HIDDEN
 
+        //TODO: move to separate function (maybe like with onClicks?)
         addChipGroup.setOnCheckedChangeListener { _, checkedId ->
             submitReportButton.isEnabled = checkedId != -1
         }
@@ -96,11 +97,10 @@ class MapsActivity : AppCompatActivity(), AppContract.View {
         )
 
         filterSheet = FilterSheetFragment(model)
-
         val mapFragment = supportFragmentManager
             .findFragmentById(R.id.map) as SupportMapFragment
-        mapFragment.getMapAsync { map -> onMapReady(map) }
 
+        mapFragment.getMapAsync { map -> onMapReady(map) }
     }
 
     override fun setRightButton(rightButtonMode: RightButtonMode, transition: Boolean) {
@@ -109,23 +109,13 @@ class MapsActivity : AppCompatActivity(), AppContract.View {
             RightButtonMode.ADD_REPORT -> {
                 addButton.alpha = 1f
                 if (transition) {
-                    val animationDrawable = R.drawable.location_to_add
-                    addButton.setImageDrawable(ContextCompat.getDrawable(this, animationDrawable))
-                    (addButton.drawable as TransitionDrawable).isCrossFadeEnabled = true
-                    (addButton.drawable as TransitionDrawable).startTransition(
-                        BUTTON_ANIMATION_DURATION
-                    )
+                    animateAddButton(R.drawable.location_to_add)
                 }
             }
             RightButtonMode.SHOW_LOCATION -> {
                 addButton.alpha = 1f
                 if (transition) {
-                    val animationDrawable = R.drawable.add_to_location
-                    addButton.setImageDrawable(ContextCompat.getDrawable(this, animationDrawable))
-                    (addButton.drawable as TransitionDrawable).isCrossFadeEnabled = true
-                    (addButton.drawable as TransitionDrawable).startTransition(
-                        BUTTON_ANIMATION_DURATION
-                    )
+                    animateAddButton(R.drawable.add_to_location)
                 }
             }
             RightButtonMode.DISABLED -> {
@@ -134,27 +124,20 @@ class MapsActivity : AppCompatActivity(), AppContract.View {
         }
     }
 
-    override fun moveCamera(position: LatLng, animate: Boolean) {
-        if (animate) {
-            mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(position, ZOOM_LEVEL))
-        } else {
-            mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(position, ZOOM_LEVEL))
+    override fun showToast(textId: Int, length: Int) {
+        runOnUiThread {
+            context.showToast(textId, length)
         }
-        presenter.setRightButtonMode(mMap.projection.visibleRegion.latLngBounds)
     }
 
-    override fun showDetailsSheet(report: Report) {
+    override fun moveCamera(position: LatLng, animate: Boolean) {
         runOnUiThread {
-            detailsTypeChip.text = report.properties.accident.toHumanReadableString(this)
-            detailsSeverityChip.text =
-                report.properties.severity.toHumanReadableString(this)
-            detailsSeverityChip.chipBackgroundColor = report.properties.severity.toColor(this)
-            detailsTimeTextView.text =
-                getString(R.string.time_details_description).toRelativeDateString(report.properties.creationDate)
-
-            //This will be filled in showLocationOnDetailsSheet()
-            detailsPlaceTextView.text = "..."
-            showSheet(SheetVisibility.DETAILS_SHEET)
+            if (animate) {
+                mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(position, ZOOM_LEVEL))
+            } else {
+                mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(position, ZOOM_LEVEL))
+            }
+            presenter.setRightButtonMode(mMap.projection.visibleRegion.latLngBounds)
         }
     }
 
@@ -174,7 +157,8 @@ class MapsActivity : AppCompatActivity(), AppContract.View {
             .with(activityView, getString(R.string.location_explanation))
             .withOpenSettingsButton(getString(R.string.settings_button))
             .build()
-        val overallListener = object : PermissionListener {
+
+        val presenterListener = object : PermissionListener {
             override fun onPermissionGranted(response: PermissionGrantedResponse) {
                 presenter.handleLocationBeingEnabled()
             }
@@ -190,9 +174,10 @@ class MapsActivity : AppCompatActivity(), AppContract.View {
                 presenter.handleLocationBeingDisabled()
             }
         }
+
         Dexter.withActivity(this)
             .withPermission(Manifest.permission.ACCESS_FINE_LOCATION)
-            .withListener(CompositePermissionListener(snackBarListener, overallListener))
+            .withListener(CompositePermissionListener(snackBarListener, presenterListener))
             .check()
     }
 
@@ -288,19 +273,25 @@ class MapsActivity : AppCompatActivity(), AppContract.View {
     }
 
     private fun showSheet(sheetVisibility: SheetVisibility) {
-        when (sheetVisibility) {
-            SheetVisibility.DETAILS_SHEET -> {
-                detailsSheet.state = BottomSheetBehavior.STATE_COLLAPSED
-                addSheet.state = BottomSheetBehavior.STATE_HIDDEN
-            }
-            SheetVisibility.ADD_SHEET -> {
-                detailsSheet.state = BottomSheetBehavior.STATE_HIDDEN
-                addSheet.state = BottomSheetBehavior.STATE_COLLAPSED
-            }
-            SheetVisibility.NONE -> {
-                detailsSheet.state = BottomSheetBehavior.STATE_HIDDEN
-                addSheet.state = BottomSheetBehavior.STATE_HIDDEN
-            }
+        detailsSheet.state = if (sheetVisibility == SheetVisibility.DETAILS_SHEET)
+            BottomSheetBehavior.STATE_COLLAPSED
+        else BottomSheetBehavior.STATE_HIDDEN
+        addSheet.state = if (sheetVisibility == SheetVisibility.ADD_SHEET)
+            BottomSheetBehavior.STATE_COLLAPSED
+        else BottomSheetBehavior.STATE_HIDDEN
+    }
+
+    private fun fillDetailsSheet(report: Report) {
+        runOnUiThread {
+            detailsTypeChip.text = report.properties.accident.toHumanReadableString(this)
+            detailsSeverityChip.text =
+                report.properties.severity.toHumanReadableString(this)
+            detailsSeverityChip.chipBackgroundColor = report.properties.severity.toColor(this)
+            detailsTimeTextView.text =
+                getString(R.string.time_details_description).toRelativeDateString(report.properties.creationDate)
+
+            //This will be filled in showLocationOnDetailsSheet()
+            detailsPlaceTextView.text = "..."
         }
     }
 
@@ -308,6 +299,14 @@ class MapsActivity : AppCompatActivity(), AppContract.View {
         val bounds = mMap.projection.visibleRegion.latLngBounds
         presenter.setRightButtonMode(bounds)
         presenter.loadReportsToMap(bounds.northeast.toPoint(), bounds.southwest.toPoint())
+    }
+
+    private fun animateAddButton(animationDrawable: Int) {
+        addButton.setImageDrawable(ContextCompat.getDrawable(this, animationDrawable))
+        (addButton.drawable as TransitionDrawable).isCrossFadeEnabled = true
+        (addButton.drawable as TransitionDrawable).startTransition(
+            BUTTON_ANIMATION_DURATION
+        )
     }
 
     //Button functions
@@ -341,11 +340,13 @@ class MapsActivity : AppCompatActivity(), AppContract.View {
     //Observers
     private fun handleShowReport(report: Report) {
         moveCamera(report.location.toLatLng(), animate = true)
-        showDetailsSheet(report)
+        fillDetailsSheet(report)
+        showSheet(SheetVisibility.DETAILS_SHEET)
         val position = report.location
         thread {
+            //TODO: this should not be here, like at all - do it in presenter
             showLocationOnDetailsSheet(
-                context.getLocationName(
+                location.getLocationName(
                     position.latitude,
                     position.longitude
                 )
@@ -354,20 +355,11 @@ class MapsActivity : AppCompatActivity(), AppContract.View {
     }
 
     private fun handleGrade(grade: Grade) {
-        when (grade) {
-            Grade.UNGRADED -> {
-                relevantGradeButton.isEnabled = true
-                irrelevantGradeButton.isEnabled = true
-            }
-            Grade.RELEVANT -> {
-                relevantGradeButton.isEnabled = true
-                irrelevantGradeButton.isEnabled = false
-            }
-            Grade.NOT_RELEVANT -> {
-                relevantGradeButton.isEnabled = false
-                irrelevantGradeButton.isEnabled = true
-            }
-        }
+        relevantGradeButton.isEnabled = grade == Grade.UNGRADED || grade == Grade.RELEVANT
+        irrelevantGradeButton.isEnabled = grade == Grade.UNGRADED || grade == Grade.NOT_RELEVANT
+
+        relevantGradeButton.isClickable = grade == Grade.UNGRADED
+        irrelevantGradeButton.isClickable = grade == Grade.UNGRADED
     }
 
 }

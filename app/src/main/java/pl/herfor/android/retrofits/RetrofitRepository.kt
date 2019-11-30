@@ -3,6 +3,7 @@ package pl.herfor.android.retrofits
 import android.util.Log
 import org.koin.core.KoinComponent
 import org.koin.core.inject
+import pl.herfor.android.modules.DatabaseModule
 import pl.herfor.android.modules.LiveDataModule
 import pl.herfor.android.objects.Report
 import pl.herfor.android.objects.ReportGrade
@@ -13,14 +14,13 @@ import pl.herfor.android.objects.requests.ReportAddRequest
 import pl.herfor.android.objects.requests.ReportGradeRequest
 import pl.herfor.android.objects.requests.ReportSearchRequest
 import pl.herfor.android.utils.Constants
-import pl.herfor.android.viewmodels.ReportViewModel
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
-class RetrofitRepository(val model: ReportViewModel) : KoinComponent {
+class RetrofitRepository : KoinComponent {
     //Retrofit
     private val retrofit = Retrofit.Builder()
         .baseUrl("http://10.0.2.2:8080/")
@@ -30,6 +30,7 @@ class RetrofitRepository(val model: ReportViewModel) : KoinComponent {
     private val gradeRetrofit = retrofit.create(GradeRetrofit::class.java)
     private val userRetrofit = retrofit.create(UserRetrofit::class.java)
     private val liveData: LiveDataModule by inject()
+    private val database: DatabaseModule by inject()
 
     fun loadReport(
         id: String,
@@ -71,10 +72,10 @@ class RetrofitRepository(val model: ReportViewModel) : KoinComponent {
                 response?.body()?.forEach { report ->
                     when (report.properties.severity) {
                         Severity.NONE -> {
-                            model.threadSafeDelete(report)
+                            database.threadSafeDelete(report)
                         }
                         else -> {
-                            model.threadSafeInsert(report)
+                            database.threadSafeInsert(report)
                         }
                     }
                 }
@@ -93,7 +94,11 @@ class RetrofitRepository(val model: ReportViewModel) : KoinComponent {
                 if (report?.id != null) {
                     liveData.submittingReportStatus.value = true
                     report.properties.notificationStatus = NotificationStatus.Dismissed
-                    model.threadSafeInsert(report)
+                    database.threadSafeInsert(report)
+                }
+                //TODO: error handling here
+                else {
+
                 }
             }
 
@@ -111,7 +116,7 @@ class RetrofitRepository(val model: ReportViewModel) : KoinComponent {
                 val report = response.body()
                 when (report?.properties?.severity) {
                     Severity.NONE -> {
-                        model.threadSafeDelete(report)
+                        database.threadSafeDelete(report)
                         liveData.reportFromNotificationStatus.value = null
                     }
                     null -> {
@@ -122,7 +127,7 @@ class RetrofitRepository(val model: ReportViewModel) : KoinComponent {
                         liveData.reportFromNotificationStatus.value = null
                     }
                     else -> {
-                        model.threadSafeInsert(report)
+                        database.threadSafeInsert(report)
                         liveData.reportFromNotificationStatus.value = report.id
                     }
                 }
@@ -140,9 +145,8 @@ class RetrofitRepository(val model: ReportViewModel) : KoinComponent {
             override fun onResponse(call: Call<ReportGrade>, response: Response<ReportGrade>) {
                 val grade = response.body()
                 if (grade != null) {
-                    model.threadSafeInsert(grade)
+                    database.threadSafeInsert(grade)
                     liveData.gradeSubmissionStatus.value = true
-                    model.currentlyShownGrade.value = grade.grade
                 } else {
                     liveData.gradeSubmissionStatus.value = false
                 }

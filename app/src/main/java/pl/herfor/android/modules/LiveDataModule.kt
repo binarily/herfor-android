@@ -27,6 +27,7 @@ class LiveDataModule : KoinComponent {
     val reportFromNotificationStatus: MutableLiveData<String?> by lazy {
         MutableLiveData<String?>()
     }
+    //TODO: observer for this
     val gradeSubmissionStatus: MutableLiveData<Boolean> by lazy {
         MutableLiveData<Boolean>()
     }

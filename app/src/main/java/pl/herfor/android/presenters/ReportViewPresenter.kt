@@ -8,7 +8,6 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.location.Location
 import android.os.Build
 import android.util.Log
 import android.widget.Toast
@@ -26,10 +25,7 @@ import org.koin.core.inject
 import pl.herfor.android.R
 import pl.herfor.android.interfaces.AppContract
 import pl.herfor.android.interfaces.ContextRepository
-import pl.herfor.android.modules.LiveDataModule
-import pl.herfor.android.modules.NotificationGeofenceModule
-import pl.herfor.android.modules.PreferencesModule
-import pl.herfor.android.modules.SilentZoneGeofenceModule
+import pl.herfor.android.modules.*
 import pl.herfor.android.objects.Point
 import pl.herfor.android.objects.Report
 import pl.herfor.android.objects.ReportProperties
@@ -44,6 +40,7 @@ import pl.herfor.android.utils.Constants.Companion.NOTIFICATION_CHANNEL_ID
 import pl.herfor.android.utils.toLatLng
 import pl.herfor.android.utils.toPoint
 import pl.herfor.android.viewmodels.ReportViewModel
+import kotlin.concurrent.thread
 
 class ReportViewPresenter(
     private val view: AppContract.View,
@@ -55,6 +52,8 @@ class ReportViewPresenter(
     private val silentZoneGeofence: SilentZoneGeofenceModule by inject()
     private val preferences: PreferencesModule by inject()
     private val liveData: LiveDataModule by inject()
+    private val location: LocationModule by inject()
+    private val database: DatabaseModule by inject()
 
     override fun start() {
         if (liveData.started) {
@@ -90,6 +89,10 @@ class ReportViewPresenter(
         liveData.reportFromNotificationStatus.observe(
             context.getLifecycleOwner(),
             Observer { status -> reportFromNotificationObserver(status) }
+        )
+        liveData.gradeSubmissionStatus.observe(
+            context.getLifecycleOwner(),
+            Observer { status -> handleGradeSubmission(status) }
         )
         liveData.registrationId.observe(context.getLifecycleOwner(),
             Observer { registrationId -> preferences.setUserId(registrationId) })
@@ -129,22 +132,20 @@ class ReportViewPresenter(
             return
         }
 
-        if (checkForLocationPermission()) {
-            context.getCurrentLocation().addOnSuccessListener { location: Location? ->
-                if (location != null) {
-                    val report = ReportAddRequest(
-                        userId,
-                        location.toPoint(),
-                        reportProperties
-                    )
-                    repository.submitReport(report)
-                } else {
+        if (hasLocationPermission()) {
+            thread {
+                val currentLocation = location.getCurrentLocation()
+                if (currentLocation == null) {
                     view.showSubmitReportFailure()
+                    return@thread
                 }
+                val report = ReportAddRequest(
+                    userId,
+                    currentLocation.toPoint(),
+                    reportProperties
+                )
+                repository.submitReport(report)
             }
-                .addOnFailureListener {
-                    view.showSubmitReportFailure()
-                }
         } else {
             seekPermissions(true)
         }
@@ -158,13 +159,18 @@ class ReportViewPresenter(
             return
         }
 
-        if (checkForLocationPermission()) {
-            context.getCurrentLocation().addOnSuccessListener {
+        if (hasLocationPermission()) {
+            thread {
+                val currentLocation = location.getCurrentLocation()
+                if (currentLocation == null) {
+                    //TODO: error handling
+                    return@thread
+                }
                 val request =
                     ReportGradeRequest(
                         userId,
                         model.currentlyShownReport.value!!.id,
-                        it.toPoint(),
+                        currentLocation.toPoint(),
                         grade
                     )
                 repository.submitGrade(request)
@@ -175,8 +181,8 @@ class ReportViewPresenter(
     }
 
     override fun loadReportsToMap(northEast: Point, southWest: Point) {
-        val currentReports = context.getReportDao().getFromLocation(
-            northEast.longitude, southWest.longitude,
+        val currentReports = database.getReportDao().getFromLocation(
+            southWest.longitude, northEast.longitude,
             southWest.latitude, northEast.latitude
         )
         currentReports.observe(context.getLifecycleOwner(), Observer {
@@ -232,22 +238,25 @@ class ReportViewPresenter(
 
     @SuppressLint("MissingPermission")
     override fun setRightButtonMode(bounds: LatLngBounds) {
-        if (checkForLocationPermission()) {
-            context.getCurrentLocation().addOnSuccessListener { location: Location? ->
-                if (location != null) {
-                    val transition =
-                        bounds.contains(location.toLatLng()) xor model.insideLocationArea
-                    if (transition) {
-                        model.insideLocationArea = !model.insideLocationArea
-                    }
-                    val buttonMode =
-                        if (model.insideLocationArea) RightButtonMode.ADD_REPORT else RightButtonMode.SHOW_LOCATION
-                    view.setRightButton(buttonMode, transition)
-                } else {
-                    context.showToast(R.string.location_unavailable_error, Toast.LENGTH_SHORT)
+        if (hasLocationPermission()) {
+            thread {
+                val currentLocation = location.getCurrentLocation()
+                if (currentLocation == null) {
+                    view.showToast(R.string.location_unavailable_error, Toast.LENGTH_SHORT)
                     view.setRightButton(RightButtonMode.DISABLED, false)
+                    return@thread
                 }
+
+                val transition =
+                    bounds.contains(currentLocation.toLatLng()) xor model.insideLocationArea
+                if (transition) {
+                    model.insideLocationArea = !model.insideLocationArea
+                }
+                val buttonMode =
+                    if (model.insideLocationArea) RightButtonMode.ADD_REPORT else RightButtonMode.SHOW_LOCATION
+                view.setRightButton(buttonMode, transition)
             }
+
         } else {
             view.setRightButton(RightButtonMode.DISABLED, false)
         }
@@ -268,7 +277,7 @@ class ReportViewPresenter(
     }
 
     //TODO: to context
-    fun checkForLocationPermission(): Boolean {
+    fun hasLocationPermission(): Boolean {
         return ContextCompat.checkSelfPermission(
             context.getContext(),
             Manifest.permission.ACCESS_FINE_LOCATION
@@ -294,13 +303,13 @@ class ReportViewPresenter(
     }
 
     fun showCurrentLocation(animate: Boolean) {
-        if (checkForLocationPermission()) {
-            context.getCurrentLocation().addOnSuccessListener { location: Location? ->
-                if (location != null) {
-                    view.moveCamera(location.toLatLng(), animate)
-                } else {
-                    context.showToast(R.string.location_unavailable_error, Toast.LENGTH_SHORT)
+        if (hasLocationPermission()) {
+            thread {
+                val currentLocation = location.getCurrentLocation()
+                if (currentLocation == null) {
+                    view.showToast(R.string.location_unavailable_error, Toast.LENGTH_SHORT)
                 }
+                view.moveCamera(currentLocation.toLatLng(), animate)
             }
         } else {
             seekPermissions(true)
@@ -358,7 +367,7 @@ class ReportViewPresenter(
     fun reportFromNotificationObserver(status: String?) {
         when (status) {
             null -> {
-                context.showToast(R.string.report_notification_unavailable, Toast.LENGTH_SHORT)
+                view.showToast(R.string.report_notification_unavailable, Toast.LENGTH_SHORT)
             }
             else -> {
                 if (model.mapMarkers[status] != null) {
@@ -412,15 +421,16 @@ class ReportViewPresenter(
     }
 
     fun severityFilterObserver(severity: Severity) {
-
         when (model.visibleSeverities.value?.contains(severity)) {
             true -> {
                 preferences.setSeverity(severity, false)
                 model.visibleSeverities.value?.remove(severity)
+                model.visibleSeverities.value = model.visibleSeverities.value
             }
             false -> {
                 preferences.setSeverity(severity, true)
                 model.visibleSeverities.value?.add(severity)
+                model.visibleSeverities.value = model.visibleSeverities.value
             }
         }
     }
@@ -430,10 +440,12 @@ class ReportViewPresenter(
             true -> {
                 preferences.setAccident(accident, false)
                 model.visibleAccidents.value?.remove(accident)
+                model.visibleAccidents.value = model.visibleAccidents.value
             }
             false -> {
                 preferences.setAccident(accident, true)
                 model.visibleAccidents.value?.add(accident)
+                model.visibleAccidents.value = model.visibleAccidents.value
             }
         }
     }
@@ -450,7 +462,7 @@ class ReportViewPresenter(
     }
 
     fun handleShownReport(report: Report) {
-        val grade = context.getGradeDao().getGradesByReportIdAsync(report.id)
+        val grade = database.getGradeDao().getGradesByReportIdAsync(report.id)
         grade.observe(context.getLifecycleOwner(), Observer { grades ->
             if (grades.isEmpty()) {
                 model.currentlyShownGrade.value = Grade.UNGRADED
@@ -459,6 +471,29 @@ class ReportViewPresenter(
             }
             grade.removeObservers(context.getLifecycleOwner())
         })
+    }
+
+    fun handleGradeSubmission(status: Boolean) {
+        when (status) {
+            true -> {
+                if (model.currentlyShownReport.value == null) {
+                    return
+                }
+                val grade = database.getGradeDao()
+                    .getGradesByReportIdAsync(model.currentlyShownReport.value!!.id)
+                grade.observe(context.getLifecycleOwner(), Observer { grades ->
+                    if (grades.isEmpty()) {
+                        model.currentlyShownGrade.value = Grade.UNGRADED
+                    } else {
+                        model.currentlyShownGrade.value = grades[0].grade
+                    }
+                    grade.removeObservers(context.getLifecycleOwner())
+                })
+            }
+            false -> {
+                context.showToast(R.string.grade_error_toast, Toast.LENGTH_SHORT)
+            }
+        }
     }
 
     fun handleSilentZoneChange(silentZone: SilentZone) {

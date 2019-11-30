@@ -5,14 +5,14 @@ import com.google.android.gms.location.Geofence
 import com.google.android.gms.location.GeofencingRequest
 import org.koin.core.KoinComponent
 import org.koin.core.inject
-import pl.herfor.android.interfaces.ContextRepository
-import pl.herfor.android.services.GeofencingService
 import pl.herfor.android.utils.toDetectedActivityDistance
+import kotlin.concurrent.thread
 
 class NotificationGeofenceModule : KoinComponent {
 
-    private val context: ContextRepository by inject()
     private val preferences: PreferencesModule by inject()
+    private val location: LocationModule by inject()
+    private val intent: IntentModule by inject()
 
     fun registerFullGeofence() {
         val radius = preferences.getCurrentActivity().toDetectedActivityDistance()
@@ -24,14 +24,20 @@ class NotificationGeofenceModule : KoinComponent {
     }
 
     private fun registerGeofence(radius: Float) {
-        context.getCurrentLocation().addOnSuccessListener { location ->
-            context.getGeofencingClient().addGeofences(
+        thread {
+            val currentLocation = location.getCurrentLocation()
+            if (currentLocation == null) {
+                //TODO: do some error handling
+                return@thread
+            }
+
+            location.getGeofencingClient().addGeofences(
                 GeofencingRequest.Builder().apply {
                     setInitialTrigger(GeofencingRequest.INITIAL_TRIGGER_EXIT)
-                    addGeofences(listOf(createGeofenceRequest(location, radius)))
+                    addGeofences(listOf(createGeofenceRequest(currentLocation, radius)))
                 }
                     .build(),
-                GeofencingService.geofencePendingIntent(context.getContext())
+                intent.geofenceIntent()
             )
         }
     }

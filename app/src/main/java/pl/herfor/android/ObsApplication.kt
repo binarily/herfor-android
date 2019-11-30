@@ -18,7 +18,7 @@ import pl.herfor.android.viewmodels.ReportViewModel
 import pl.herfor.android.views.MapsActivity
 
 val appModule = module {
-    single { RetrofitRepository(get()) }
+    single { RetrofitRepository() }
     scope(named<MapsActivity>()) {
         factory<ContextRepository> { (context: Context) -> AppContext(context) }
         factory { (context: ContextRepository) -> PreferencesModule(context) }
@@ -31,6 +31,8 @@ val appModule = module {
     single { PreferencesModule(get()) }
     single { IntentModule() }
     single { LiveDataModule() }
+    single { DatabaseModule(get()) }
+    single { LocationModule(get()) }
 
     factory<AppContract.Presenter> { (view: AppContract.View, model: ReportViewModel, context: ContextRepository) ->
         ReportViewPresenter(
@@ -40,7 +42,7 @@ val appModule = module {
         )
     }
 
-    viewModel { ReportViewModel(get()) }
+    viewModel { ReportViewModel() }
 }
 
 class ObsApplication : Application() {
