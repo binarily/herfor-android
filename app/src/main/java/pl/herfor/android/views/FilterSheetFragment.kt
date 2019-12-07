@@ -1,5 +1,6 @@
 package pl.herfor.android.views
 
+import android.app.AlertDialog
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -73,6 +74,16 @@ class FilterSheetFragment(
 
         workSilentZoneTextView.setOnClickListener {
             model.silentZoneToggled.value = SilentZone.WORK
+        }
+
+        privacyPolicyButton.setOnClickListener {
+            AlertDialog.Builder(this.context)
+                .setTitle(R.string.privacy_policy_button)
+                .setMessage(R.string.privacy_policy)
+                .setPositiveButton("OK") { dialog, _ ->
+                    dialog.dismiss()
+                }
+                .show()
         }
     }
 

@@ -27,7 +27,7 @@ class ReportViewModel : ViewModel(), KoinComponent {
     val currentlyShownReport: MutableLiveData<Report> by lazy {
         MutableLiveData<Report>()
     }
-    //TODO: this should hold a view model object
+    //TODO: this should hold a view model object, possibly be merged into currentlyShownReport
     val currentlyShownGrade: MutableLiveData<Grade> by lazy {
         MutableLiveData<Grade>()
     }
@@ -47,8 +47,7 @@ class ReportViewModel : ViewModel(), KoinComponent {
         MutableLiveData<SilentZone>()
     }
 
-    //All markers
-    //TODO: fix this
+    //Reports that should be on the map
     val filteredReports by lazy {
         Transformations.switchMap(
             DoubleTrigger(visibleSeverities, visibleAccidents)
@@ -57,7 +56,7 @@ class ReportViewModel : ViewModel(), KoinComponent {
         }
     }
 
-    //Map of markers on map
+    //Reports that are on the map
     val mapMarkers = HashMap<String, Marker>()
 
     //Settings

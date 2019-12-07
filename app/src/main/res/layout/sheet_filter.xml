@@ -154,10 +154,11 @@
 
     <TextView
             android:id="@+id/homeSilentZoneTextView"
+            style="?attr/textAppearanceListItem"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="16dp"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="16dp"
             android:layout_marginEnd="16dp"
             android:clickable="true"
             android:drawableStart="@drawable/ic_silent_home"
@@ -172,21 +173,52 @@
 
     <TextView
             android:id="@+id/workSilentZoneTextView"
+            style="?attr/textAppearanceListItem"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="16dp"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="16dp"
             android:layout_marginEnd="16dp"
-            android:layout_marginBottom="16dp"
             android:clickable="true"
             android:drawableStart="@drawable/ic_silent_work"
             android:drawablePadding="2dip"
             android:focusable="true"
             android:gravity="center_vertical"
             android:text="@string/silent_zone_initial"
-            app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/homeSilentZoneTextView" />
+
+    <View
+            android:id="@+id/divider"
+            android:layout_width="0dp"
+            android:layout_height="4dp"
+            android:layout_marginStart="16dp"
+            android:layout_marginTop="16dp"
+            android:layout_marginEnd="16dp"
+            android:background="?android:attr/listDivider"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/workSilentZoneTextView" />
+
+    <TextView
+            android:id="@+id/privacyPolicyButton"
+            style="?attr/textAppearanceListItem"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginTop="16dp"
+            android:layout_marginEnd="16dp"
+            android:layout_marginBottom="16dp"
+            android:clickable="true"
+            android:drawableStart="@drawable/ic_info"
+            android:drawablePadding="2dip"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:text="@string/privacy_policy_button"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/divider" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -14,7 +14,9 @@ data class ReportProperties(
     val accident: Accident,
     val severity: Severity,
     @ColumnInfo(defaultValue = "NotShown")
-    var notificationStatus: NotificationStatus = NotificationStatus.NotShown
+    var notificationStatus: NotificationStatus = NotificationStatus.NotShown,
+    @ColumnInfo(defaultValue = "false")
+    var userMade: Boolean = false
 ) {
     @Ignore
     constructor(accident: Accident) : this(

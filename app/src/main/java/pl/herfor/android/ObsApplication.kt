@@ -26,13 +26,16 @@ val appModule = module {
 
     single<ContextRepository> { AppContext(androidContext()) }
 
-    single { NotificationGeofenceModule() }
-    single { SilentZoneGeofenceModule() }
     single { PreferencesModule(get()) }
-    single { IntentModule() }
-    single { LiveDataModule() }
     single { DatabaseModule(get()) }
     single { LocationModule(get()) }
+
+    single { NotificationGeofenceModule() }
+    single { SilentZoneGeofenceModule() }
+    single { IntentModule() }
+    single { LiveDataModule() }
+    single { NotificationModule() }
+    single { BusinessLogicModule() }
 
     factory<AppContract.Presenter> { (view: AppContract.View, model: ReportViewModel, context: ContextRepository) ->
         ReportViewPresenter(

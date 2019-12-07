@@ -1,25 +1,13 @@
 package pl.herfor.android.presenters
 
-import android.Manifest
 import android.annotation.SuppressLint
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.PendingIntent
-import android.content.Context
-import android.content.Intent
-import android.content.pm.PackageManager
-import android.os.Build
 import android.util.Log
 import android.widget.Toast
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.Observer
-import com.google.android.gms.common.ConnectionResult
+import com.crashlytics.android.Crashlytics
 import com.google.android.gms.common.GoogleApiAvailability
-import com.google.android.gms.location.ActivityRecognition
-import com.google.android.gms.location.ActivityTransitionRequest
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.LatLngBounds
-import com.google.firebase.messaging.FirebaseMessaging
 import org.koin.core.KoinComponent
 import org.koin.core.inject
 import pl.herfor.android.R
@@ -34,9 +22,7 @@ import pl.herfor.android.objects.requests.ReportAddRequest
 import pl.herfor.android.objects.requests.ReportGradeRequest
 import pl.herfor.android.objects.requests.ReportSearchRequest
 import pl.herfor.android.retrofits.RetrofitRepository
-import pl.herfor.android.services.ActivityRecognitionService
 import pl.herfor.android.utils.Constants
-import pl.herfor.android.utils.Constants.Companion.NOTIFICATION_CHANNEL_ID
 import pl.herfor.android.utils.toLatLng
 import pl.herfor.android.utils.toPoint
 import pl.herfor.android.viewmodels.ReportViewModel
@@ -54,6 +40,7 @@ class ReportViewPresenter(
     private val liveData: LiveDataModule by inject()
     private val location: LocationModule by inject()
     private val database: DatabaseModule by inject()
+    private val notification: NotificationModule by inject()
 
     override fun start() {
         if (liveData.started) {
@@ -97,9 +84,9 @@ class ReportViewPresenter(
         liveData.registrationId.observe(context.getLifecycleOwner(),
             Observer { registrationId -> preferences.setUserId(registrationId) })
 
-        createNotificationChannel()
-        registerToNotifications()
-        requestActivityUpdates()
+        notification.createNotificationChannel()
+        notification.registerToNotifications()
+        notification.receiveGeofenceRadiusUpdates()
         rebuildGeofences()
 
         liveData.started = true
@@ -121,6 +108,12 @@ class ReportViewPresenter(
         liveData.registrationId.removeObservers(context.getLifecycleOwner())
 
         liveData.started = false
+
+        if (Constants.DEV_MODE) {
+            //Clean up cache of the DB - we don't need it as we restart database
+            database.getGradeDao().deleteAll()
+            database.getReportDao().deleteAll()
+        }
     }
 
     @SuppressLint("MissingPermission")
@@ -132,7 +125,7 @@ class ReportViewPresenter(
             return
         }
 
-        if (hasLocationPermission()) {
+        if (context.getLocationPermissionState()) {
             thread {
                 val currentLocation = location.getCurrentLocation()
                 if (currentLocation == null) {
@@ -159,11 +152,11 @@ class ReportViewPresenter(
             return
         }
 
-        if (hasLocationPermission()) {
+        if (context.getLocationPermissionState()) {
             thread {
                 val currentLocation = location.getCurrentLocation()
                 if (currentLocation == null) {
-                    //TODO: error handling
+                    liveData.gradeSubmissionStatus.value = false
                     return@thread
                 }
                 val request =
@@ -230,7 +223,10 @@ class ReportViewPresenter(
     }
 
     override fun seekPermissions(checkLocation: Boolean) {
-        this.checkForPlayServices()
+        if (!context.checkForPlayServices()) {
+            GoogleApiAvailability.getInstance()
+                .makeGooglePlayServicesAvailable(context.getActivity())
+        }
         if (checkLocation) {
             view.getPermissionForLocation()
         }
@@ -238,7 +234,7 @@ class ReportViewPresenter(
 
     @SuppressLint("MissingPermission")
     override fun setRightButtonMode(bounds: LatLngBounds) {
-        if (hasLocationPermission()) {
+        if (context.getLocationPermissionState()) {
             thread {
                 val currentLocation = location.getCurrentLocation()
                 if (currentLocation == null) {
@@ -256,7 +252,6 @@ class ReportViewPresenter(
                     if (model.insideLocationArea) RightButtonMode.ADD_REPORT else RightButtonMode.SHOW_LOCATION
                 view.setRightButton(buttonMode, transition)
             }
-
         } else {
             view.setRightButton(RightButtonMode.DISABLED, false)
         }
@@ -266,44 +261,8 @@ class ReportViewPresenter(
         repository.loadReport(id)
     }
 
-    //TODO: to context
-    fun checkForPlayServices() {
-        val playServicesCode =
-            GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(context.getContext())
-        if (playServicesCode != ConnectionResult.SUCCESS) {
-            GoogleApiAvailability.getInstance()
-                .makeGooglePlayServicesAvailable(context.getActivity())
-        }
-    }
-
-    //TODO: to context
-    fun hasLocationPermission(): Boolean {
-        return ContextCompat.checkSelfPermission(
-            context.getContext(),
-            Manifest.permission.ACCESS_FINE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED
-    }
-
-    //TODO: to notification module
-    fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val name = context.getContext().getString(R.string.channel_name)
-            val descriptionText = context.getContext().getString(R.string.channel_description)
-            val importance = NotificationManager.IMPORTANCE_HIGH
-            val channel = NotificationChannel(NOTIFICATION_CHANNEL_ID, name, importance).apply {
-                description = descriptionText
-            }
-            // Register the channel with the system
-            val notificationManager: NotificationManager =
-                context.getContext().getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.createNotificationChannel(channel)
-        } else {
-            Log.d(this.javaClass.name, "Notification channel not necessary on this platform.")
-        }
-    }
-
     fun showCurrentLocation(animate: Boolean) {
-        if (hasLocationPermission()) {
+        if (context.getLocationPermissionState()) {
             thread {
                 val currentLocation = location.getCurrentLocation()
                 if (currentLocation == null) {
@@ -327,21 +286,6 @@ class ReportViewPresenter(
         }
     }
 
-    fun requestActivityUpdates() {
-        val pendingIntent = PendingIntent.getService(
-            context.getContext(),
-            0,
-            Intent(context.getContext(), ActivityRecognitionService::class.java),
-            PendingIntent.FLAG_UPDATE_CURRENT
-        )
-
-        ActivityRecognition.getClient(context.getContext())
-            .requestActivityTransitionUpdates(
-                ActivityTransitionRequest(Constants.TRANSITIONS),
-                pendingIntent
-            )
-    }
-
     fun rebuildGeofences() {
         for (silentZone in SilentZone.values()) {
             when (silentZone) {
@@ -353,13 +297,6 @@ class ReportViewPresenter(
         }
 
         notificationGeofence.registerInitialGeofence()
-    }
-
-    //TODO: to notification module
-    fun registerToNotifications() {
-        FirebaseMessaging.getInstance().subscribeToTopic("report-new")
-        FirebaseMessaging.getInstance().subscribeToTopic("report-update")
-        FirebaseMessaging.getInstance().subscribeToTopic("report-remove")
     }
 
     //OBSERVERS
@@ -404,6 +341,7 @@ class ReportViewPresenter(
             }
             false -> {
                 view.showSubmitReportFailure()
+                Crashlytics.log(Log.DEBUG, "Presenter", "Report submission failure")
             }
         }
     }
@@ -484,8 +422,11 @@ class ReportViewPresenter(
                 grade.observe(context.getLifecycleOwner(), Observer { grades ->
                     if (grades.isEmpty()) {
                         model.currentlyShownGrade.value = Grade.UNGRADED
+                        liveData.gradeSubmissionStatus.value = false
+                        Crashlytics.log(Log.DEBUG, "Presenter", "Grade not saved")
                     } else {
                         model.currentlyShownGrade.value = grades[0].grade
+                        context.showToast(R.string.grade_thanks_toast, Toast.LENGTH_SHORT)
                     }
                     grade.removeObservers(context.getLifecycleOwner())
                 })

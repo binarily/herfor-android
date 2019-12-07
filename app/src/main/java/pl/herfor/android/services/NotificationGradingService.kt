@@ -76,7 +76,7 @@ class NotificationGradingService : IntentService("NotificationGradingService"), 
 
             override fun onResponse(call: Call<ReportGrade>, response: Response<ReportGrade>) {
                 val grade = response.body()
-                if (grade != null) {
+                if (grade != null && response.isSuccessful) {
                     database.threadSafeInsert(grade)
                     NotificationManagerCompat.from(context.getContext())
                         .cancel(grade.reportId, 0)

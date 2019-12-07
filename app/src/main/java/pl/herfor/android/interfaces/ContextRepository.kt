@@ -14,4 +14,6 @@ interface ContextRepository {
     fun getSharedPreferences(): SharedPreferences
     fun getString(id: Int): String
     fun getLocationProvider(): FusedLocationProviderClient
+    fun checkForPlayServices(): Boolean
+    fun getLocationPermissionState(): Boolean
 }

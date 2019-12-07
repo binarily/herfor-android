@@ -1,6 +1,7 @@
 package pl.herfor.android.retrofits
 
 import android.util.Log
+import com.crashlytics.android.Crashlytics
 import org.koin.core.KoinComponent
 import org.koin.core.inject
 import pl.herfor.android.modules.DatabaseModule
@@ -23,7 +24,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 class RetrofitRepository : KoinComponent {
     //Retrofit
     private val retrofit = Retrofit.Builder()
-        .baseUrl("http://10.0.2.2:8080/")
+        .baseUrl("https://obs-czerniakk.appspot.com/")
         .addConverterFactory(GsonConverterFactory.create(Constants.GSON))
         .build()
     private val reportRetrofit = retrofit.create(ReportRetrofit::class.java)
@@ -68,16 +69,20 @@ class RetrofitRepository : KoinComponent {
                 call: Call<List<Report>>?,
                 response: Response<List<Report>>?
             ) {
-                liveData.connectionStatus.value = true
-                response?.body()?.forEach { report ->
-                    when (report.properties.severity) {
-                        Severity.NONE -> {
-                            database.threadSafeDelete(report)
-                        }
-                        else -> {
-                            database.threadSafeInsert(report)
+                if (response?.isSuccessful == true) {
+                    liveData.connectionStatus.value = true
+                    response.body()?.forEach { report ->
+                        when (report.properties.severity) {
+                            Severity.NONE -> {
+                                database.threadSafeDelete(report)
+                            }
+                            else -> {
+                                database.threadSafeInsert(report)
+                            }
                         }
                     }
+                } else {
+                    liveData.connectionStatus.value = false
                 }
             }
         }
@@ -86,19 +91,29 @@ class RetrofitRepository : KoinComponent {
     private fun reportAddCallback(): Callback<Report> {
         return object : Callback<Report> {
             override fun onFailure(call: Call<Report>, t: Throwable) {
+                Crashlytics.log(Log.DEBUG, "Retrofit", "Could not add marker")
                 liveData.submittingReportStatus.value = false
             }
 
             override fun onResponse(call: Call<Report>, response: Response<Report>) {
-                val report = response.body()
-                if (report?.id != null) {
-                    liveData.submittingReportStatus.value = true
-                    report.properties.notificationStatus = NotificationStatus.Dismissed
-                    database.threadSafeInsert(report)
-                }
-                //TODO: error handling here
-                else {
-
+                if (response.isSuccessful) {
+                    val report = response.body()
+                    if (report?.id != null) {
+                        liveData.submittingReportStatus.value = true
+                        report.properties.notificationStatus = NotificationStatus.Dismissed
+                        report.properties.userMade = true
+                        database.threadSafeInsert(report)
+                    } else {
+                        Crashlytics.log(Log.DEBUG, "Retrofit", "Add marker response with no return")
+                        liveData.submittingReportStatus.value = false
+                    }
+                } else {
+                    Crashlytics.log(
+                        Log.ERROR,
+                        "Retrofit",
+                        "Add marker failed (HTTP code: %s)".format(response.code())
+                    )
+                    liveData.submittingReportStatus.value = false
                 }
             }
 
@@ -110,26 +125,38 @@ class RetrofitRepository : KoinComponent {
             override fun onFailure(call: Call<Report>, t: Throwable) {
                 liveData.connectionStatus.value = false
                 liveData.reportFromNotificationStatus.value = null
+                Crashlytics.log(Log.ERROR, "Retrofit", "Could not load marker from notification")
             }
 
             override fun onResponse(call: Call<Report>, response: Response<Report>) {
-                val report = response.body()
-                when (report?.properties?.severity) {
-                    Severity.NONE -> {
-                        database.threadSafeDelete(report)
-                        liveData.reportFromNotificationStatus.value = null
+                if (response.isSuccessful) {
+                    val report = response.body()
+                    when (report?.properties?.severity) {
+                        Severity.NONE -> {
+                            database.threadSafeDelete(report)
+                            liveData.reportFromNotificationStatus.value = null
+                        }
+                        null -> {
+                            Crashlytics.log(
+                                Log.ERROR,
+                                "Retrofit",
+                                "Received marker from notification with no severity, showing error"
+                            )
+                            liveData.reportFromNotificationStatus.value = null
+                        }
+                        else -> {
+                            database.threadSafeInsert(report)
+                            liveData.reportFromNotificationStatus.value = report.id
+                        }
                     }
-                    null -> {
-                        Log.e(
-                            this.javaClass.name,
-                            "Received marker with no severity, showing error"
-                        )
-                        liveData.reportFromNotificationStatus.value = null
-                    }
-                    else -> {
-                        database.threadSafeInsert(report)
-                        liveData.reportFromNotificationStatus.value = report.id
-                    }
+                } else {
+                    liveData.connectionStatus.value = false
+                    liveData.reportFromNotificationStatus.value = null
+                    Crashlytics.log(
+                        Log.ERROR,
+                        "Retrofit",
+                        "Could not load marker from notification (HTTP code: %s)".format(response.code())
+                    )
                 }
             }
 
@@ -140,15 +167,26 @@ class RetrofitRepository : KoinComponent {
         return object : Callback<ReportGrade> {
             override fun onFailure(call: Call<ReportGrade>, t: Throwable) {
                 liveData.gradeSubmissionStatus.value = false
+                Crashlytics.log(Log.DEBUG, "Retrofit", "Grade submission failed")
             }
 
             override fun onResponse(call: Call<ReportGrade>, response: Response<ReportGrade>) {
-                val grade = response.body()
-                if (grade != null) {
-                    database.threadSafeInsert(grade)
-                    liveData.gradeSubmissionStatus.value = true
+                if (response.isSuccessful) {
+                    val grade = response.body()
+                    if (grade != null) {
+                        database.threadSafeInsert(grade)
+                        liveData.gradeSubmissionStatus.value = true
+                    } else {
+                        liveData.gradeSubmissionStatus.value = false
+                        Crashlytics.log(Log.DEBUG, "Retrofit", "Submission with no grade")
+                    }
                 } else {
                     liveData.gradeSubmissionStatus.value = false
+                    Crashlytics.log(
+                        Log.DEBUG,
+                        "Retrofit",
+                        "Submission with no grade (HTTP code: %s)".format(response.code())
+                    )
                 }
             }
 
@@ -158,11 +196,19 @@ class RetrofitRepository : KoinComponent {
     private fun registerCalback(): Callback<User> {
         return object : Callback<User> {
             override fun onFailure(call: Call<User>, t: Throwable) {
-                //Do nothing - it'll be empty
+                Crashlytics.log(Log.DEBUG, "Retrofit", "Could not register the user")
             }
 
             override fun onResponse(call: Call<User>, response: Response<User>) {
-                liveData.registrationId.value = response.body()?.id
+                if (response.isSuccessful) {
+                    liveData.registrationId.value = response.body()?.id
+                } else {
+                    Crashlytics.log(
+                        Log.DEBUG,
+                        "Retrofit",
+                        "Could not register the user (HTTP code: %s)".format(response.code())
+                    )
+                }
             }
 
         }

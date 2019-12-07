@@ -37,4 +37,16 @@
     <string name="silent_zones_header">Set up and manage silent zones</string>
     <string name="silent_zone_initial">Tap to set up</string>
     <string name="silent_zones_set">%s - tap to remove</string>
+    <string name="privacy_policy">
+        As you’re using this app, you will provide it with some data. In this document, you will find out what sort of data will be used and how.\n
+        Location\n
+        We use location to show you where you are on the map, to let you send reports (which are linked to your location at the moment of sending the report) and to show you notifications about relevant reports nearby. We try to take the least data we can: we will know someone asked to see reports from a given area visible on the map and that someone sent a report regarding a given location. We don’t send your current location to our servers unless you provide it explicitly. Decision on whether to show you a notification is made on the device.\n
+        Activity recognition\n
+        We use Activity Recognition API provided by Google Play Services to show you more relevant notifications by determining whether to show reports from a wider area. We don’t send this information to our servers - the decision is made on the device.\n
+        Notifications\n
+        We use Firebase Cloud Messaging from Google to show you notifications. Messages from this service are sent to all devices, with decision on whether to show you one made on the device.\n
+        Note on external services\n
+        We extensively use application programming interfaces (also known as APIs) from companies that have their own privacy policies. We do not have full control over data that is used by these APIs, however its usage should be uniform regardless of an app that uses these APIs.
+    </string>
+    <string name="privacy_policy_button">Privacy policy</string>
 </resources>

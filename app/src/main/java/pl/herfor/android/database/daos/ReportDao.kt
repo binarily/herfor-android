@@ -17,6 +17,9 @@ interface ReportDao {
     @Query("SELECT * FROM reports where id = :id")
     fun getOne(id: String): LiveData<Report>
 
+    @Query("SELECT * FROM reports where id = :id")
+    fun getOneNow(id: String): List<Report>
+
     //Use for keeping track of changes of what is visible
     @Query(
         "SELECT * FROM reports m WHERE m.latitude BETWEEN :north AND :south " +
@@ -46,13 +49,16 @@ interface ReportDao {
     @Query("DELETE FROM reports WHERE id=:id")
     fun deleteById(id: String)
 
+    @Query("DELETE FROM reports")
+    fun deleteAll()
+
     @Query("UPDATE reports SET severity = :severity WHERE id = :id")
     fun updateSeverity(severity: Severity, id: String)
 
     @Query("UPDATE reports SET notificationStatus = :notificationStatus WHERE id = :id")
     fun updateNotificationStatus(notificationStatus: NotificationStatus, id: String)
 
-    @Query("SELECT * FROM reports WHERE severity IN (:severities) AND accident IN (:accidents)")
+    @Query("SELECT * FROM reports WHERE (severity IN (:severities) AND accident IN (:accidents)) or userMade = 1")
     fun getFiltered(
         severities: List<Severity>?,
         accidents: List<Accident>?

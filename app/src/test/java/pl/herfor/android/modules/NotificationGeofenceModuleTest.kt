@@ -6,9 +6,11 @@ import com.nhaarman.mockitokotlin2.given
 import com.nhaarman.mockitokotlin2.mock
 import com.nhaarman.mockitokotlin2.verify
 import com.nhaarman.mockitokotlin2.whenever
+import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import org.koin.core.context.startKoin
+import org.koin.core.context.stopKoin
 import org.koin.core.get
 import org.koin.test.KoinTest
 import org.koin.test.mock.declareMock
@@ -29,6 +31,11 @@ class NotificationGeofenceModuleTest : KoinTest {
         }
     }
 
+    @After
+    fun tearDown() {
+        stopKoin()
+    }
+
     @Test
     fun shouldCreateGeofenceWithActivityRadius() {
         //given
@@ -38,7 +45,9 @@ class NotificationGeofenceModuleTest : KoinTest {
         val locationMock = mock<Location>()
         declareMock<LocationModule> {
             given(this.getCurrentLocation()).willReturn(locationMock)
+            given(this.getGeofencingClient()).willReturn(mock())
         }
+        declareMock<IntentModule> { }
         whenever(locationMock.latitude).thenReturn(10.0)
         whenever(locationMock.longitude).thenReturn(20.0)
 
@@ -60,6 +69,7 @@ class NotificationGeofenceModuleTest : KoinTest {
         val locationMock = mock<Location>()
         declareMock<LocationModule> {
             given(this.getCurrentLocation()).willReturn(locationMock)
+            given(this.getGeofencingClient()).willReturn(mock())
         }
         declareMock<IntentModule> { }
         whenever(locationMock.latitude).thenReturn(10.0)

@@ -8,15 +8,13 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.crashlytics.android.Crashlytics
 import kotlinx.coroutines.coroutineScope
 import org.koin.core.KoinComponent
 import org.koin.core.inject
 import pl.herfor.android.R
 import pl.herfor.android.interfaces.ContextRepository
-import pl.herfor.android.modules.DatabaseModule
-import pl.herfor.android.modules.IntentModule
-import pl.herfor.android.modules.LocationModule
-import pl.herfor.android.modules.PreferencesModule
+import pl.herfor.android.modules.*
 import pl.herfor.android.objects.Report
 import pl.herfor.android.objects.enums.NotificationStatus
 import pl.herfor.android.objects.enums.Severity
@@ -26,7 +24,6 @@ import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 import kotlin.math.roundToLong
-import kotlin.random.Random
 
 
 class NotificationWorker(context: Context, workerParams: WorkerParameters) :
@@ -37,6 +34,7 @@ class NotificationWorker(context: Context, workerParams: WorkerParameters) :
     private val intents: IntentModule by inject()
     private val location: LocationModule by inject()
     private val database: DatabaseModule by inject()
+    private val businessLogic: BusinessLogicModule by inject()
 
     override suspend fun doWork(): Result = coroutineScope {
 
@@ -58,7 +56,7 @@ class NotificationWorker(context: Context, workerParams: WorkerParameters) :
                 handleRefresh()
             }
             else -> {
-                Log.e(this.javaClass.name, "Received message with no action, ignoring...")
+                Crashlytics.log(Log.ERROR, "Notification worker", "Message with no action")
             }
         }
 
@@ -67,7 +65,9 @@ class NotificationWorker(context: Context, workerParams: WorkerParameters) :
     }
 
     private fun handleNewReport(report: Report) {
-        database.getReportDao().insert(report)
+        if (database.getReportDao().getOneNow(report.id).isEmpty()) {
+            database.getReportDao().insert(report)
+        }
         handleReport(report)
         return
     }
@@ -85,7 +85,10 @@ class NotificationWorker(context: Context, workerParams: WorkerParameters) :
             return
         }
 
-        if (alreadyGraded(report.id) || alreadyShown(report.id) || !shouldShowNotification(report)) {
+        if (businessLogic.alreadyGraded(report.id) || businessLogic.alreadyShown(report.id) || !shouldShowNotification(
+                report
+            )
+        ) {
             return
         }
 
@@ -150,36 +153,8 @@ class NotificationWorker(context: Context, workerParams: WorkerParameters) :
 
     //Condition methods
     private fun shouldShowNotification(report: Report): Boolean {
-        if (Constants.DEV_MODE) {
-            return true
-        }
-        val severities = preferences.getSeverities()
-        val accidentTypes = preferences.getAccidents()
-        val displayNotifications = preferences.getSilentZoneNotificationCondition()
-
-        if (!displayNotifications || !report.isVisible(severities, accidentTypes)) {
+        if (!businessLogic.showNotificationByFilter(report)) {
             return false
-        }
-
-        when {
-            severities.contains(Severity.GREEN) -> when (report.properties.severity) {
-                Severity.GREEN -> if (Random.nextInt(0, 100) < 50) return false
-                Severity.YELLOW -> if (Random.nextInt(0, 100) < 100) return false
-                Severity.RED -> if (Random.nextInt(0, 100) < 100) return false
-                Severity.NONE -> return false
-            }
-            severities.contains(Severity.YELLOW) -> when (report.properties.severity) {
-                Severity.GREEN -> if (Random.nextInt(0, 100) < 30) return false
-                Severity.YELLOW -> if (Random.nextInt(0, 100) < 80) return false
-                Severity.RED -> if (Random.nextInt(0, 100) < 100) return false
-                Severity.NONE -> return false
-            }
-            severities.contains(Severity.RED) -> when (report.properties.severity) {
-                Severity.GREEN -> if (Random.nextInt(0, 100) < 15) return false
-                Severity.YELLOW -> if (Random.nextInt(0, 100) < 50) return false
-                Severity.RED -> if (Random.nextInt(0, 100) < 100) return false
-                Severity.NONE -> return false
-            }
         }
 
         val distance = calculateDistance(report)
@@ -192,18 +167,6 @@ class NotificationWorker(context: Context, workerParams: WorkerParameters) :
         }
 
         return true
-    }
-
-    private fun alreadyShown(id: String): Boolean {
-        val marker = database.getReportDao().getOne(id).value
-            ?: return false
-
-        return marker.properties.notificationStatus != NotificationStatus.NotShown
-    }
-
-    private fun alreadyGraded(id: String): Boolean {
-        val grades = database.getGradeDao().getGradesByReportIdSync(id)
-        return grades.isNotEmpty()
     }
 
     //Helper methods
@@ -266,12 +229,20 @@ class NotificationWorker(context: Context, workerParams: WorkerParameters) :
     private fun newReportCallback(): Callback<Report> {
         return object : Callback<Report> {
             override fun onFailure(call: Call<Report>, t: Throwable) {
-                Log.d("NotificationWorker", "Received update to non-existing marker, ignoring...")
+                Crashlytics.log(Log.DEBUG, "Notification worker", "Update to non-existing marker")
             }
 
             override fun onResponse(call: Call<Report>, response: Response<Report>) {
-                if (response.body() != null) {
-                    handleNewReport(response.body()!!)
+                if (response.isSuccessful) {
+                    if (response.body() != null) {
+                        handleNewReport(response.body()!!)
+                    }
+                } else {
+                    Crashlytics.log(
+                        Log.DEBUG,
+                        "Notification worker",
+                        "Update to non-existing marker"
+                    )
                 }
             }
         }

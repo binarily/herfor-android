@@ -302,11 +302,13 @@ class MapsActivity : AppCompatActivity(), AppContract.View {
     }
 
     private fun animateAddButton(animationDrawable: Int) {
-        addButton.setImageDrawable(ContextCompat.getDrawable(this, animationDrawable))
-        (addButton.drawable as TransitionDrawable).isCrossFadeEnabled = true
-        (addButton.drawable as TransitionDrawable).startTransition(
-            BUTTON_ANIMATION_DURATION
-        )
+        runOnUiThread {
+            addButton.setImageDrawable(ContextCompat.getDrawable(this, animationDrawable))
+            (addButton.drawable as TransitionDrawable).isCrossFadeEnabled = true
+            (addButton.drawable as TransitionDrawable).startTransition(
+                BUTTON_ANIMATION_DURATION
+            )
+        }
     }
 
     //Button functions
@@ -323,10 +325,12 @@ class MapsActivity : AppCompatActivity(), AppContract.View {
     }
 
     fun onRelevantButton(view: View) {
+        handleGrade(Grade.RELEVANT)
         presenter.submitGrade(Grade.RELEVANT)
     }
 
     fun onIrrelevantButton(view: View) {
+        handleGrade(Grade.NOT_RELEVANT)
         presenter.submitGrade(Grade.NOT_RELEVANT)
     }
 

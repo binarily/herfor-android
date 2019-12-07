@@ -19,4 +19,7 @@ interface ReportGradeDao {
 
     @Query("DELETE FROM grades WHERE report = :reportId")
     fun deleteByMarkerId(reportId: String)
+
+    @Query("DELETE FROM grades")
+    fun deleteAll()
 }
