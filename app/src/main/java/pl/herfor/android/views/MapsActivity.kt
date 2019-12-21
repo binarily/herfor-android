@@ -46,6 +46,7 @@ import pl.herfor.android.objects.enums.Accident
 import pl.herfor.android.objects.enums.Grade
 import pl.herfor.android.objects.enums.RightButtonMode
 import pl.herfor.android.objects.enums.SheetVisibility
+import pl.herfor.android.objects.viewmodels.ReportViewModel
 import pl.herfor.android.utils.Constants
 import pl.herfor.android.utils.Constants.Companion.BUTTON_ANIMATION_DURATION
 import pl.herfor.android.utils.Constants.Companion.CHIP_ID_KEY
@@ -53,7 +54,6 @@ import pl.herfor.android.utils.Constants.Companion.RIGHT_BUTTON_STATE_KEY
 import pl.herfor.android.utils.Constants.Companion.ZOOM_LEVEL
 import pl.herfor.android.utils.toPoint
 import pl.herfor.android.utils.toRelativeDateString
-import pl.herfor.android.viewmodels.ReportViewModel
 import kotlin.concurrent.thread
 
 
@@ -238,13 +238,6 @@ class MapsActivity : AppCompatActivity(), AppContract.View {
         presenter.seekPermissions(false)
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        presenter.stop()
-        model.currentlyShownReport.removeObservers(this)
-        model.currentlyShownGrade.removeObservers(this)
-    }
-
     //Private functions
     private fun onMapReady(googleMap: GoogleMap) {
         mMap = googleMap
@@ -263,7 +256,7 @@ class MapsActivity : AppCompatActivity(), AppContract.View {
         mMap.setOnMyLocationClickListener { presenter.displayReportAdd() }
         mMap.setOnCameraIdleListener(::handleIdleMap)
 
-        presenter.start()
+        presenter.initializeObservers()
         presenter.seekPermissions(true)
 
         if (intent.extras != null && intent.extras.containsKey(Constants.INTENT_REPORT_ID_KEY)) {

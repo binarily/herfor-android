@@ -13,7 +13,7 @@ import pl.herfor.android.R
 import pl.herfor.android.objects.enums.Accident
 import pl.herfor.android.objects.enums.Severity
 import pl.herfor.android.objects.enums.SilentZone
-import pl.herfor.android.viewmodels.ReportViewModel
+import pl.herfor.android.objects.viewmodels.ReportViewModel
 
 class FilterSheetFragment(
     private val model: ReportViewModel

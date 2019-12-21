@@ -21,11 +21,11 @@ import pl.herfor.android.objects.enums.*
 import pl.herfor.android.objects.requests.ReportAddRequest
 import pl.herfor.android.objects.requests.ReportGradeRequest
 import pl.herfor.android.objects.requests.ReportSearchRequest
+import pl.herfor.android.objects.viewmodels.ReportViewModel
 import pl.herfor.android.retrofits.RetrofitRepository
 import pl.herfor.android.utils.Constants
 import pl.herfor.android.utils.toLatLng
 import pl.herfor.android.utils.toPoint
-import pl.herfor.android.viewmodels.ReportViewModel
 import kotlin.concurrent.thread
 
 class ReportViewPresenter(
@@ -42,10 +42,7 @@ class ReportViewPresenter(
     private val database: DatabaseModule by inject()
     private val notification: NotificationModule by inject()
 
-    override fun start() {
-        if (liveData.started) {
-            return
-        }
+    override fun initializeObservers() {
         model.filteredReports.observe(
             context.getLifecycleOwner(),
             Observer { newReportList -> handleChangesInReports(newReportList) })
@@ -89,30 +86,12 @@ class ReportViewPresenter(
         notification.receiveGeofenceRadiusUpdates()
         rebuildGeofences()
 
-        liveData.started = true
-    }
-
-    override fun stop() {
-        model.filteredReports.removeObservers(context.getLifecycleOwner())
-        model.accidentFilterChanged.removeObservers(context.getLifecycleOwner())
-        model.severityFilterChanged.removeObservers(context.getLifecycleOwner())
-        model.currentlyShownReport.removeObservers(context.getLifecycleOwner())
-        model.silentZoneToggled.removeObservers(context.getLifecycleOwner())
-
-        liveData.addReportToMap.removeObservers(context.getLifecycleOwner())
-        liveData.removeReportFromMap.removeObservers(context.getLifecycleOwner())
-        liveData.updateReportOnMap.removeObservers(context.getLifecycleOwner())
-        liveData.submittingReportStatus.removeObservers(context.getLifecycleOwner())
-        liveData.connectionStatus.removeObservers(context.getLifecycleOwner())
-        liveData.reportFromNotificationStatus.removeObservers(context.getLifecycleOwner())
-        liveData.registrationId.removeObservers(context.getLifecycleOwner())
-
-        liveData.started = false
-
         if (Constants.DEV_MODE) {
             //Clean up cache of the DB - we don't need it as we restart database
-            database.getGradeDao().deleteAll()
-            database.getReportDao().deleteAll()
+            thread {
+                database.getGradeDao().deleteAll()
+                database.getReportDao().deleteAll()
+            }
         }
     }
 
@@ -276,10 +255,11 @@ class ReportViewPresenter(
     }
 
     fun handleLocationPermissionChange(permissionEnabled: Boolean) {
+        view.setLocationStateForMap(permissionEnabled)
+
         val buttonMode =
             if (permissionEnabled) RightButtonMode.ADD_REPORT else RightButtonMode.DISABLED
         //TODO: replace with LiveData + observer in MapsActivity
-        view.setLocationStateForMap(permissionEnabled)
         view.setRightButton(buttonMode, false)
         if (permissionEnabled) {
             showCurrentLocation()
@@ -300,7 +280,6 @@ class ReportViewPresenter(
     }
 
     //OBSERVERS
-    //TODO: move to separate class, aka ObserverCollection
     fun reportFromNotificationObserver(status: String?) {
         when (status) {
             null -> {
@@ -423,6 +402,7 @@ class ReportViewPresenter(
                     if (grades.isEmpty()) {
                         model.currentlyShownGrade.value = Grade.UNGRADED
                         liveData.gradeSubmissionStatus.value = false
+                        context.showToast(R.string.grade_error_toast, Toast.LENGTH_SHORT)
                         Crashlytics.log(Log.DEBUG, "Presenter", "Grade not saved")
                     } else {
                         model.currentlyShownGrade.value = grades[0].grade

@@ -27,7 +27,10 @@ class NotificationGeofenceModule : KoinComponent {
         thread {
             val currentLocation = location.getCurrentLocation()
             if (currentLocation == null) {
-                //TODO: do some error handling
+                thread {
+                    Thread.sleep(5000)
+                    registerGeofence(radius)
+                }
                 return@thread
             }
 

@@ -49,4 +49,5 @@
         We extensively use application programming interfaces (also known as APIs) from companies that have their own privacy policies. We do not have full control over data that is used by these APIs, however its usage should be uniform regardless of an app that uses these APIs.
     </string>
     <string name="privacy_policy_button">Privacy policy</string>
+    <string name="silent_zone_error">Silent zone could not be registered. Try again later.</string>
 </resources>

@@ -46,4 +46,5 @@
         Często korzystamy z interfejsów programistycznych aplikacji (zwanych też API) od firm z własnymi zasadami prywatności. Nie mamy pełnej kontroli nad danymi pochodzącymi z API, jednakże ich użycie powinno być podobne niezależnie od tego, jaka aplikacja korzysta z API.
     </string>
     <string name="privacy_policy_button">Zasady prywatności</string>
+    <string name="silent_zone_error">Cicha strefa nie mogła zostać zarejestrowana. Spróbuj ponownie później.</string>
 </resources>

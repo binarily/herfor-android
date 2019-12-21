@@ -1,4 +1,4 @@
-package pl.herfor.android.viewmodels
+package pl.herfor.android.objects.viewmodels
 
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.Transformations

@@ -27,8 +27,7 @@ interface AppContract {
     }
 
     interface Presenter {
-        fun start()
-        fun stop()
+        fun initializeObservers()
 
         fun displayReportAdd()
         fun submitReport(reportProperties: ReportProperties)

@@ -12,9 +12,9 @@ import pl.herfor.android.contexts.AppContext
 import pl.herfor.android.interfaces.AppContract
 import pl.herfor.android.interfaces.ContextRepository
 import pl.herfor.android.modules.*
+import pl.herfor.android.objects.viewmodels.ReportViewModel
 import pl.herfor.android.presenters.ReportViewPresenter
 import pl.herfor.android.retrofits.RetrofitRepository
-import pl.herfor.android.viewmodels.ReportViewModel
 import pl.herfor.android.views.MapsActivity
 
 val appModule = module {

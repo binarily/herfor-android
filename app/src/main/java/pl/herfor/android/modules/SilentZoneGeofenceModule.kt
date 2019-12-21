@@ -1,11 +1,14 @@
 package pl.herfor.android.modules
 
 import android.location.Location
+import android.widget.Toast
 import androidx.lifecycle.MutableLiveData
 import com.google.android.gms.location.Geofence
 import com.google.android.gms.location.GeofencingRequest
 import org.koin.core.KoinComponent
 import org.koin.core.inject
+import pl.herfor.android.R
+import pl.herfor.android.interfaces.ContextRepository
 import pl.herfor.android.objects.SilentZoneData
 import pl.herfor.android.objects.enums.SilentZone
 import kotlin.concurrent.thread
@@ -15,6 +18,7 @@ class SilentZoneGeofenceModule : KoinComponent {
     private val preferences: PreferencesModule by inject()
     private val location: LocationModule by inject()
     private val intent: IntentModule by inject()
+    private val context: ContextRepository by inject()
 
     fun isRunning(silentZone: SilentZone): Boolean {
         return preferences.getSilentZoneData(silentZone).enabled
@@ -24,7 +28,7 @@ class SilentZoneGeofenceModule : KoinComponent {
         thread {
             val currentLocation = location.getCurrentLocation()
             if (currentLocation == null) {
-                //TODO: error handling
+                context.showToast(R.string.silent_zone_error, Toast.LENGTH_SHORT)
                 return@thread
             }
             val locationName =
