@@ -1,5 +1,6 @@
 package pl.herfor.android.modules
 
+import com.google.android.gms.location.DetectedActivity
 import org.koin.core.KoinComponent
 import org.koin.core.inject
 import pl.herfor.android.objects.Report
@@ -58,5 +59,26 @@ class BusinessLogicModule : KoinComponent {
     fun alreadyGraded(id: String): Boolean {
         val grades = database.getGradeDao().getGradesByReportIdSync(id)
         return grades.isNotEmpty()
+    }
+
+    fun getDetectedActivity(type: Int): Float {
+        when (type) {
+            DetectedActivity.STILL -> {
+                return 200.0f
+            }
+            DetectedActivity.ON_FOOT, DetectedActivity.WALKING, DetectedActivity.RUNNING -> {
+                return 400.0f
+            }
+            DetectedActivity.ON_BICYCLE -> {
+                return 800.0f
+            }
+            DetectedActivity.IN_VEHICLE -> {
+                return 1600.0f
+            }
+            else -> {
+                return 200.0f
+            }
+        }
+
     }
 }

@@ -24,7 +24,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 class RetrofitRepository : KoinComponent {
     //Retrofit
     private val retrofit = Retrofit.Builder()
-        .baseUrl("https://obs-czerniakk.appspot.com/")
+        .baseUrl(Constants.SERVER_LOCATION)
         .addConverterFactory(GsonConverterFactory.create(Constants.GSON))
         .build()
     private val reportRetrofit = retrofit.create(ReportRetrofit::class.java)

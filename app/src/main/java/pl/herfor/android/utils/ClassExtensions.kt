@@ -4,7 +4,6 @@ import android.location.Location
 import android.text.format.DateUtils
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MediatorLiveData
-import com.google.android.gms.location.DetectedActivity
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.SphericalUtil
 import org.threeten.bp.OffsetDateTime
@@ -23,10 +22,6 @@ internal fun Location?.toLatLng(): LatLng {
 
 internal fun Location.toPoint(): Point {
     return Point(latitude, longitude)
-}
-
-internal fun Point?.toLatLng(): LatLng {
-    return LatLng(this?.latitude ?: 0.0, this?.longitude ?: 0.0)
 }
 
 internal fun Point?.toLocation(): Location {
@@ -53,26 +48,6 @@ internal fun Report.isVisible(
 ): Boolean {
     return allowedSeverities.contains(this.properties.severity)
             && allowedAccidents.contains(this.properties.accident)
-}
-
-internal fun Int.toDetectedActivityDistance(): Float {
-    when (this) {
-        DetectedActivity.STILL -> {
-            return 200.0f
-        }
-        DetectedActivity.ON_FOOT, DetectedActivity.WALKING, DetectedActivity.RUNNING -> {
-            return 400.0f
-        }
-        DetectedActivity.ON_BICYCLE -> {
-            return 800.0f
-        }
-        DetectedActivity.IN_VEHICLE -> {
-            return 1600.0f
-        }
-        else -> {
-            return 200.0f
-        }
-    }
 }
 
 internal class DoubleTrigger<A, B>(a: LiveData<A>, b: LiveData<B>) :

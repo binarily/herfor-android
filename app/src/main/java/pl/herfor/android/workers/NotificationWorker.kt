@@ -19,7 +19,10 @@ import pl.herfor.android.objects.Report
 import pl.herfor.android.objects.enums.NotificationStatus
 import pl.herfor.android.objects.enums.Severity
 import pl.herfor.android.retrofits.RetrofitRepository
-import pl.herfor.android.utils.*
+import pl.herfor.android.utils.Constants
+import pl.herfor.android.utils.toLocation
+import pl.herfor.android.utils.toNorthEast
+import pl.herfor.android.utils.toSouthWest
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -116,7 +119,7 @@ class NotificationWorker(context: Context, workerParams: WorkerParameters) :
 
     private fun handleRefresh() {
         val currentActivity = preferences.getCurrentActivity()
-        val radius = currentActivity.toDetectedActivityDistance()
+        val radius = businessLogic.getDetectedActivity(currentActivity)
         val location = location.getCurrentLocation() ?: return
         val northEast = location.toNorthEast(radius.toDouble() / 2)
         val southWest = location.toSouthWest(radius.toDouble() / 2)
@@ -162,7 +165,7 @@ class NotificationWorker(context: Context, workerParams: WorkerParameters) :
         val currentActivity =
             preferences.getCurrentActivity()
 
-        if (distance == -1L || distance > currentActivity.toDetectedActivityDistance()) {
+        if (distance == -1L || distance > businessLogic.getDetectedActivity(currentActivity)) {
             return false
         }
 

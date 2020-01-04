@@ -9,6 +9,7 @@ import org.aaronhe.threetengson.ThreeTenGsonAdapter
 class Constants {
     companion object {
         const val DEV_MODE = true
+        const val SERVER_LOCATION = "https://obs-czerniakk.appspot.com/"
 
         const val NOTIFICATION_CHANNEL_ID = "obs-notifications"
         const val NOTIFICATION_WORKER_TAG = "notifications"
@@ -19,8 +20,6 @@ class Constants {
         const val NOTIFICATION_MESSAGE_SEVERITY_KEY = "severity"
         const val NOTIFICATION_MESSAGE_ID_KEY = "id"
         const val NOTIFICATION_MESSAGE_REPORT_KEY = "marker"
-        const val NOTIFICATION_MESSAGE_LATITUDE_KEY = "latitude"
-        const val NOTIFICATION_MESSAGE_LONGITUDE_KEY = "longitude"
         const val INTENT_REPORT_ID_KEY = "reportId"
 
         const val NOTIFICATION_MESSAGE_ACTION_KEY = "action"
