@@ -4,9 +4,11 @@ import org.koin.core.KoinComponent
 import pl.herfor.android.database.AppDatabase
 import pl.herfor.android.database.daos.ReportDao
 import pl.herfor.android.database.daos.ReportGradeDao
+import pl.herfor.android.database.daos.ReportPropertiesDao
 import pl.herfor.android.interfaces.ContextRepository
 import pl.herfor.android.objects.Report
 import pl.herfor.android.objects.ReportGrade
+import pl.herfor.android.objects.ReportLocalProperties
 import kotlin.concurrent.thread
 
 class DatabaseModule(context: ContextRepository) : KoinComponent {
@@ -18,6 +20,10 @@ class DatabaseModule(context: ContextRepository) : KoinComponent {
 
     fun getGradeDao(): ReportGradeDao {
         return database.gradeDao()
+    }
+
+    fun getReportPropertiesDao(): ReportPropertiesDao {
+        return database.reportPropertiesDao()
     }
 
     fun threadSafeInsert(report: Report) {
@@ -35,6 +41,12 @@ class DatabaseModule(context: ContextRepository) : KoinComponent {
     fun threadSafeInsert(reportGrade: ReportGrade) {
         thread {
             getGradeDao().insert(reportGrade)
+        }
+    }
+
+    fun threadSafeInsert(reportLocalProperties: ReportLocalProperties) {
+        thread {
+            getReportPropertiesDao().insert(reportLocalProperties)
         }
     }
 }

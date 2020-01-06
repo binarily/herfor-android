@@ -26,6 +26,7 @@ import pl.herfor.android.utils.toSouthWest
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
+import kotlin.concurrent.thread
 import kotlin.math.roundToLong
 
 
@@ -68,10 +69,12 @@ class NotificationWorker(context: Context, workerParams: WorkerParameters) :
     }
 
     private fun handleNewReport(report: Report) {
-        if (database.getReportDao().getOneNow(report.id).isEmpty()) {
-            database.getReportDao().insert(report)
+        thread {
+            if (database.getReportDao().getOneNow(report.id).isEmpty()) {
+                database.threadSafeInsert(report)
+            }
+            handleReport(report)
         }
-        handleReport(report)
         return
     }
 

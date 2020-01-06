@@ -76,9 +76,6 @@ class MapsActivity : AppCompatActivity(), AppContract.View {
         setContentView(R.layout.activity_main)
         activityView = findViewById(R.id.activity_main)
 
-        model.currentlyShownReport.observe(this, Observer { report -> handleShowReport(report) })
-        model.currentlyShownGrade.observe(this, Observer { grade -> handleGrade(grade) })
-
         detailsSheet = BottomSheetBehavior.from(details_sheet)
         detailsSheet.state = BottomSheetBehavior.STATE_HIDDEN
 
@@ -257,6 +254,8 @@ class MapsActivity : AppCompatActivity(), AppContract.View {
         mMap.setOnCameraIdleListener(::handleIdleMap)
 
         presenter.initializeObservers()
+        model.currentlyShownReport.observe(this, Observer { report -> handleShowReport(report) })
+        model.currentlyShownGrade.observe(this, Observer { grade -> handleGrade(grade) })
         presenter.seekPermissions(true)
 
         if (intent.extras != null && intent.extras.containsKey(Constants.INTENT_REPORT_ID_KEY)) {

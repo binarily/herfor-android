@@ -8,6 +8,7 @@ import pl.herfor.android.modules.DatabaseModule
 import pl.herfor.android.modules.LiveDataModule
 import pl.herfor.android.objects.Report
 import pl.herfor.android.objects.ReportGrade
+import pl.herfor.android.objects.ReportLocalProperties
 import pl.herfor.android.objects.User
 import pl.herfor.android.objects.enums.NotificationStatus
 import pl.herfor.android.objects.enums.Severity
@@ -100,9 +101,10 @@ class RetrofitRepository : KoinComponent {
                     val report = response.body()
                     if (report?.id != null) {
                         liveData.submittingReportStatus.value = true
-                        report.properties.notificationStatus = NotificationStatus.Dismissed
-                        report.properties.userMade = true
                         database.threadSafeInsert(report)
+                        val localProperties =
+                            ReportLocalProperties(report.id, NotificationStatus.Dismissed, true)
+                        database.threadSafeInsert(localProperties)
                     } else {
                         Crashlytics.log(Log.DEBUG, "Retrofit", "Add marker response with no return")
                         liveData.submittingReportStatus.value = false

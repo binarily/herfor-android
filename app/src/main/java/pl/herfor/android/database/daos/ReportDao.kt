@@ -55,10 +55,10 @@ interface ReportDao {
     @Query("UPDATE reports SET severity = :severity WHERE id = :id")
     fun updateSeverity(severity: Severity, id: String)
 
-    @Query("UPDATE reports SET notificationStatus = :notificationStatus WHERE id = :id")
+    @Query("UPDATE report_local SET notificationStatus = :notificationStatus WHERE id = :id")
     fun updateNotificationStatus(notificationStatus: NotificationStatus, id: String)
 
-    @Query("SELECT * FROM reports WHERE (severity IN (:severities) AND accident IN (:accidents)) or userMade = 1")
+    @Query("SELECT r.* FROM reports r LEFT JOIN report_local rl ON r.id = rl.id WHERE (r.severity IN (:severities) AND r.accident IN (:accidents)) OR rl.userMade = 1")
     fun getFiltered(
         severities: List<Severity>?,
         accidents: List<Accident>?

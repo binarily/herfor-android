@@ -86,6 +86,11 @@ class ReportViewPresenter(
         notification.receiveGeofenceRadiusUpdates()
         rebuildGeofences()
 
+        var userId = preferences.getUserId()
+        if (userId == null) {
+            repository.register()
+        }
+
         if (Constants.DEV_MODE) {
             //Clean up cache of the DB - we don't need it as we restart database
             thread {
@@ -97,11 +102,14 @@ class ReportViewPresenter(
 
     @SuppressLint("MissingPermission")
     override fun submitReport(reportProperties: ReportProperties) {
-        val userId = preferences.getUserId()
+        var userId = preferences.getUserId()
         if (userId == null) {
             repository.register()
-            view.showSubmitReportFailure()
-            return
+            userId = preferences.getUserId()
+            if (userId == null) {
+                view.showSubmitReportFailure()
+                return
+            }
         }
 
         if (context.getLocationPermissionState()) {
@@ -124,11 +132,14 @@ class ReportViewPresenter(
     }
 
     override fun submitGrade(grade: Grade) {
-        val userId = preferences.getUserId()
+        var userId = preferences.getUserId()
         if (userId == null) {
             repository.register()
-            liveData.gradeSubmissionStatus.value = false
-            return
+            userId = preferences.getUserId()
+            if (userId == null) {
+                view.showSubmitReportFailure()
+                return
+            }
         }
 
         if (context.getLocationPermissionState()) {

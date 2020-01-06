@@ -1,10 +1,8 @@
 package pl.herfor.android.objects
 
-import androidx.room.ColumnInfo
 import androidx.room.Ignore
 import org.threeten.bp.OffsetDateTime
 import pl.herfor.android.objects.enums.Accident
-import pl.herfor.android.objects.enums.NotificationStatus
 import pl.herfor.android.objects.enums.Severity
 import java.util.*
 
@@ -12,11 +10,7 @@ data class ReportProperties(
     val creationDate: OffsetDateTime = OffsetDateTime.now(),
     val modificationDate: OffsetDateTime = OffsetDateTime.now(),
     val accident: Accident,
-    val severity: Severity,
-    @ColumnInfo(defaultValue = "NotShown")
-    var notificationStatus: NotificationStatus = NotificationStatus.NotShown,
-    @ColumnInfo(defaultValue = "false")
-    var userMade: Boolean = false
+    val severity: Severity
 ) {
     @Ignore
     constructor(accident: Accident) : this(

@@ -50,10 +50,10 @@ class BusinessLogicModule : KoinComponent {
     }
 
     fun alreadyShown(id: String): Boolean {
-        val marker = database.getReportDao().getOne(id).value
+        val marker = database.getReportPropertiesDao().getOne(id).value
             ?: return false
 
-        return marker.properties.notificationStatus != NotificationStatus.NotShown
+        return marker.notificationStatus != NotificationStatus.NotShown
     }
 
     fun alreadyGraded(id: String): Boolean {
