@@ -96,7 +96,7 @@ class PreferencesModule(context: ContextRepository) : KoinComponent {
                     .getString("silentZone.${silentZone.name}.location", "")
             ),
             sharedPreferences
-                .getString("silentZone.${silentZone.name}.locationName", "")
+                .getString("silentZone.${silentZone.name}.locationName", "")!!
         )
     }
 

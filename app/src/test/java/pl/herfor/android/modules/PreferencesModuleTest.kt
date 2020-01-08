@@ -1,6 +1,7 @@
 package pl.herfor.android.modules
 
 import android.content.SharedPreferences
+import com.google.android.gms.location.DetectedActivity
 import com.google.common.truth.Truth.assertThat
 import com.nhaarman.mockitokotlin2.*
 import org.junit.Before
@@ -56,6 +57,49 @@ class PreferencesModuleTest {
     }
 
     @Test
+    fun shouldReturnUserId() {
+        //given
+        whenever(preferences.getString(eq("registrationId"), eq(null))).thenReturn("1234")
+
+        //when
+        val userId = module.getUserId()
+
+        //then
+        assertThat(userId).isEqualTo("1234")
+    }
+
+    @Test
+    fun shouldReturnSilentZoneNotificationCondition() {
+        //given
+        whenever(preferences.getBoolean(eq("displayNotifications"), any())).thenReturn(true)
+
+        //when
+        val condition = module.getSilentZoneNotificationCondition()
+
+        //then
+        assertThat(condition).isEqualTo(true)
+    }
+
+    @Test
+    fun shouldReturnCurrentActivity() {
+        //given
+        whenever(
+            preferences.getInt(
+                eq("currentActivity"),
+                any()
+            )
+        ).thenReturn(DetectedActivity.ON_BICYCLE)
+
+        //when
+        val condition = module.getCurrentActivity()
+
+        //then
+        assertThat(condition).isEqualTo(DetectedActivity.ON_BICYCLE)
+    }
+
+    //TODO: SilentZoneData
+
+    @Test
     fun shouldInsertAccident() {
         //given
 
@@ -76,4 +120,38 @@ class PreferencesModuleTest {
         //then
         verify(preferences.edit().putBoolean("severity.RED", true)).apply()
     }
+
+    @Test
+    fun shouldInsertUserId() {
+        //given
+
+        //when
+        module.setUserId("1234")
+
+        //then
+        verify(preferences.edit().putString("registrationId", "1234")).apply()
+    }
+
+    @Test
+    fun shouldInsertSilentZoneNotificationCondition() {
+        //given
+
+        //when
+        module.setSilentZoneNotificationCondition(false)
+
+        //then
+        verify(preferences.edit().putBoolean("displayNotifications", false)).apply()
+    }
+
+    @Test
+    fun shouldInsertCurrentActivity() {
+        //given
+
+        //when
+        module.setCurrentActivity(DetectedActivity.IN_VEHICLE)
+
+        //then
+        verify(preferences.edit().putInt("currentActivity", DetectedActivity.IN_VEHICLE)).apply()
+    }
+
 }
