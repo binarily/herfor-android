@@ -270,7 +270,6 @@ class ReportViewPresenter(
 
         val buttonMode =
             if (permissionEnabled) RightButtonMode.ADD_REPORT else RightButtonMode.DISABLED
-        //TODO: replace with LiveData + observer in MapsActivity
         view.setRightButton(buttonMode, false)
         if (permissionEnabled) {
             showCurrentLocation()

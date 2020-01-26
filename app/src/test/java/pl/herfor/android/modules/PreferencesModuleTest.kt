@@ -112,8 +112,6 @@ class PreferencesModuleTest {
         assertThat(condition).isEqualTo(DetectedActivity.ON_BICYCLE)
     }
 
-    //TODO: SilentZoneData
-
     @Test
     fun shouldReturnSilentZoneData() {
         //given

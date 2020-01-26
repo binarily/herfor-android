@@ -82,7 +82,6 @@ class MapsActivity : AppCompatActivity(), AppContract.View {
         addSheet = BottomSheetBehavior.from(add_sheet)
         addSheet.state = BottomSheetBehavior.STATE_HIDDEN
 
-        //TODO: move to separate function (maybe like with onClicks?)
         addChipGroup.setOnCheckedChangeListener { _, checkedId ->
             submitReportButton.isEnabled = checkedId != -1
         }
@@ -340,7 +339,6 @@ class MapsActivity : AppCompatActivity(), AppContract.View {
         showSheet(SheetVisibility.DETAILS_SHEET)
         val position = report.location
         thread {
-            //TODO: this should not be here, like at all - do it in presenter
             showLocationOnDetailsSheet(
                 location.getLocationName(
                     position.latitude,

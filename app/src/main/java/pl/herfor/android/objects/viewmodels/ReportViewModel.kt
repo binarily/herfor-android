@@ -23,11 +23,9 @@ class ReportViewModel : ViewModel(), KoinComponent {
     val accidentFilterChanged: MutableLiveData<Accident> by lazy {
         MutableLiveData<Accident>()
     }
-    //TODO: this should hold a view model object
     val currentlyShownReport: MutableLiveData<Report> by lazy {
         MutableLiveData<Report>()
     }
-    //TODO: this should hold a view model object, possibly be merged into currentlyShownReport
     val currentlyShownGrade: MutableLiveData<Grade> by lazy {
         MutableLiveData<Grade>()
     }
