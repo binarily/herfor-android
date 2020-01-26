@@ -1,16 +1,26 @@
 package pl.herfor.android.modules
 
 import android.content.SharedPreferences
+import android.location.Location
 import com.google.android.gms.location.DetectedActivity
 import com.google.common.truth.Truth.assertThat
 import com.nhaarman.mockitokotlin2.*
+import org.junit.After
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.koin.core.context.stopKoin
 import org.mockito.Answers
+import org.mockito.ArgumentMatchers.anyBoolean
+import org.mockito.ArgumentMatchers.anyString
+import org.robolectric.RobolectricTestRunner
 import pl.herfor.android.contexts.AppContext
+import pl.herfor.android.objects.SilentZoneData
 import pl.herfor.android.objects.enums.Accident
 import pl.herfor.android.objects.enums.Severity
+import pl.herfor.android.objects.enums.SilentZone
 
+@RunWith(RobolectricTestRunner::class)
 class PreferencesModuleTest {
 
     private val context = mock<AppContext>()
@@ -21,6 +31,11 @@ class PreferencesModuleTest {
     fun setUp() {
         whenever(context.getSharedPreferences()).thenReturn(preferences)
         module = PreferencesModule(context)
+    }
+
+    @After
+    fun tearDown() {
+        stopKoin()
     }
 
     @Test
@@ -100,6 +115,30 @@ class PreferencesModuleTest {
     //TODO: SilentZoneData
 
     @Test
+    fun shouldReturnSilentZoneData() {
+        //given
+        whenever(preferences.getBoolean(eq("silentZone.HOME"), anyBoolean())).thenReturn(true)
+        whenever(preferences.getFloat(eq("silentZone.HOME.location.latitude"), any())).thenReturn(
+            20.0f
+        )
+        whenever(preferences.getFloat(eq("silentZone.HOME.location.longitude"), any())).thenReturn(
+            25.0f
+        )
+        whenever(preferences.getString(eq("silentZone.HOME.locationName"), anyString())).thenReturn(
+            "Location name"
+        )
+
+        //when
+        val silentZoneData = module.getSilentZoneData(SilentZone.HOME)
+
+        //then
+        assertThat(silentZoneData.enabled).isTrue()
+        assertThat(silentZoneData.location?.latitude).isEqualTo(20.0)
+        assertThat(silentZoneData.location?.longitude).isEqualTo(25.0)
+        assertThat(silentZoneData.locationName).isEqualTo("Location name")
+    }
+
+    @Test
     fun shouldInsertAccident() {
         //given
 
@@ -153,5 +192,28 @@ class PreferencesModuleTest {
         //then
         verify(preferences.edit().putInt("currentActivity", DetectedActivity.IN_VEHICLE)).apply()
     }
+
+    @Test
+    fun shouldInsertSilentZoneData() {
+        val location = Location("dummyprovider")
+        location.latitude = 20.0
+        location.longitude = 25.0
+
+        //given
+        val silentZoneData = SilentZoneData(true, location, "Location Name")
+
+        //when
+        module.setSilentZoneData(SilentZone.WORK, silentZoneData)
+
+        //then
+        verify(
+            preferences.edit()
+                .putBoolean("silentZone.WORK", true)
+                .putFloat("silentZone.WORK.location.latitude", 20.0f)
+                .putFloat("silentZone.WORK.location.longitude", 25.0f)
+                .putString("silentZone.WORK.locationName", "Location Name")
+        ).apply()
+    }
+
 
 }

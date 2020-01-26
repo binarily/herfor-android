@@ -89,12 +89,17 @@ class PreferencesModule(context: ContextRepository) : KoinComponent {
     }
 
     fun getSilentZoneData(silentZone: SilentZone): SilentZoneData {
+        val location = Location("dummyprovider")
+        location.latitude =
+            sharedPreferences.getFloat("silentZone.${silentZone.name}.location.latitude", 0.0f)
+                .toDouble()
+        location.longitude =
+            sharedPreferences.getFloat("silentZone.${silentZone.name}.location.longitude", 0.0f)
+                .toDouble()
+
         return SilentZoneData(
             sharedPreferences.getBoolean("silentZone.${silentZone.name}", false),
-            Location(
-                sharedPreferences
-                    .getString("silentZone.${silentZone.name}.location", "")
-            ),
+            location,
             sharedPreferences
                 .getString("silentZone.${silentZone.name}.locationName", "")!!
         )
@@ -103,7 +108,14 @@ class PreferencesModule(context: ContextRepository) : KoinComponent {
     fun setSilentZoneData(silentZone: SilentZone, silentZoneData: SilentZoneData) {
         sharedPreferences.edit()
             .putBoolean("silentZone.${silentZone.name}", silentZoneData.enabled)
-            .putString("silentZone.${silentZone.name}.location", silentZoneData.location.toString())
+            .putFloat(
+                "silentZone.${silentZone.name}.location.latitude",
+                silentZoneData.location?.latitude?.toFloat() ?: 0.0f
+            )
+            .putFloat(
+                "silentZone.${silentZone.name}.location.longitude",
+                silentZoneData.location?.longitude?.toFloat() ?: 0.0f
+            )
             .putString("silentZone.${silentZone.name}.locationName", silentZoneData.locationName)
             .apply()
     }

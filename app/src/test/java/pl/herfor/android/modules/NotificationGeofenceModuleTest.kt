@@ -53,6 +53,7 @@ class NotificationGeofenceModuleTest : KoinTest {
 
         //when
         module.registerFullGeofence()
+        Thread.sleep(2000)
 
         //then
         verify(get<PreferencesModule>()).getCurrentActivity()
@@ -77,6 +78,7 @@ class NotificationGeofenceModuleTest : KoinTest {
 
         //when
         module.registerInitialGeofence()
+        Thread.sleep(2000)
 
         //then
         verify(get<PreferencesModule>(), VerificationModeFactory.times(0)).getCurrentActivity()

@@ -17,6 +17,6 @@ interface ReportRetrofit {
     @GET("reports/{id}")
     fun getMarker(@Path("id") id: String): Call<Report>
 
-    @POST("reports/create")
+    @POST("reports/add")
     fun addMarker(@Body request: ReportAddRequest): Call<Report>
 }

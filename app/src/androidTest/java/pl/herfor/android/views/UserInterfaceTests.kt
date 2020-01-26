@@ -315,7 +315,6 @@ class UserInterfaceTests {
         button1.check(matches(not(isEnabled())))
     }
 
-
     private fun childAtPosition(
         parentMatcher: Matcher<View>, position: Int
     ): Matcher<View> {

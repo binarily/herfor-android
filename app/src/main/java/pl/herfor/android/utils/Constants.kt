@@ -8,7 +8,7 @@ import org.aaronhe.threetengson.ThreeTenGsonAdapter
 
 class Constants {
     companion object {
-        const val DEV_MODE = true
+        const val DEV_MODE = false
         const val SERVER_LOCATION = "https://obs-czerniakk.appspot.com/"
 
         const val NOTIFICATION_CHANNEL_ID = "obs-notifications"
