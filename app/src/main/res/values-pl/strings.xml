@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="geocoder_error">Błąd połączenia</string>
+    <string name="connection_loss_explanation">Utraciliśmy dostęp do internetu.</string>
+    <string name="geocoder_unknown">Nieznana lokalizacja</string>
+    <string name="location_explanation">Potrzebujemy dostępu do lokalizacji, abyś mógł zgłaszać utrudnienia i widzieć swoją lokalizację.</string>
+    <string name="report_submit_error">Nie udało się wysłać zgłoszenia. Spróbuj ponownie</string>
+    <string name="reload">Załaduj ponownie</string>
+    <string name="settings_button">Ustawienia</string>
+    <string name="time_details_description">Dodano %s</string>
+    <string name="filter_sheet_title">Filtruj na mapie i w powiadomieniach</string>
+    <string name="channel_name">Powiadomienia o zdarzeniach</string>
+    <string name="channel_description">Otrzymuj powaidomienia o utrudnieniach wokół ciebie.</string>
+    <string name="green">Zielony</string>
+    <string name="red">Czerwony</string>
+    <string name="yellow">Żółty</string>
+    <string name="bike">Rower</string>
+    <string name="bus">Autobus</string>
+    <string name="metro">Metro</string>
+    <string name="pedestrian">Pieszo</string>
+    <string name="train">Pociąg</string>
+    <string name="tram">Tramwaj</string>
+    <string name="add">Dodaj</string>
+    <string name="none_severity">Zakończony</string>
+    <string name="distance_string">%d m od ciebie</string>
+    <string name="report_notification_unavailable">Zgłoszenie jest niedostępne lub się zakończyło.</string>
+    <string name="add_sheet_title">Dodaj zgłoszenie</string>
+    <string name="details_sheet_clock_content_description">Czas zgłoszenia</string>
+    <string name="location_unavailable_error">Twoja lokalizacja jest obecnie niedostępna.</string>
+    <string name="irrelevant_button_string">Nieważne</string>
+    <string name="relevant_button_string">Ważne</string>
+    <string name="grade_error_toast">Nie można było ocenić zgłoszenia. Spróbuj ponownie później.</string>
+    <string name="grade_thanks_toast">Dziękujemy za ocenę - dzięki tobie jesteśmy dokładniejsi.</string>
+    <string name="silent_zone_initial">Dotknij, aby ustawić</string>
+    <string name="silent_zones_header">Ustaw i zarządzaj cichymi strefami</string>
+    <string name="silent_zones_set">%s - dotknij, aby usunąć</string>
+    <string name="privacy_policy">
+        Podczas korzystania z aplikacji, będziesz jej udzielać dostępu do swoich danych. W tym dokumencie dowiesz się, jakiego rodzaju to są dane i jak będą one wykorzystywane.\n
+        Lokalizacja\n
+        Wykorzystujemy twoją lokalizację, by pokazać ci gdzie jesteś na mapie, by pozwolić ci wysłać zgłoszenia (które są powiązane z lokalizacją na moment wysłania zgłoszenia) i by pokazać ci powiadomienia o utrudnieniach w okolicy. Wykorzystujemy te dane w najmniejszym możliwym zakresie: będziemy wiedzieli, że ktoś poprosił o zgłoszenia z obszaru pokazanego na mapie i że ktoś wysłał zgłoszenie dotyczące danej lokalizacji. Nie wysyłamy twojej lokalizacji na serwery, jeżeli nie dokonasz akcji wymagającej jej. Decyzja o pokazaniu powiadomienia jest podejmowana na urządzeniu.\n
+        Rozpoznawanie aktywności\n
+        Wykorzystujemy Activity Recognition API dostarczane przez Usługi Google Play, by pokazać ci odpowiednie powiadomienia poprzez stwierdzenie, czy pokazać ci powiadomienia z większego obszaru. Nie wysyłamy tej informacji na serwery - decyzja jest podejmowana na urządzeniu.\n
+        Powiadomienia\n
+        Wykorzystujemy Firebase Cloud Messaging od Google by wysyłać ci powiadomienia. Powiadomienia są wysyłane do wszystkich urządzeń, a decyzja o pokazaniu powiadomienia jest podejmowana na urządzeniu.\n
+        Informacja o usługach zewnętrznych\n
+        Często korzystamy z interfejsów programistycznych aplikacji (zwanych też API) od firm z własnymi zasadami prywatności. Nie mamy pełnej kontroli nad danymi pochodzącymi z API, jednakże ich użycie powinno być podobne niezależnie od tego, jaka aplikacja korzysta z API.
+    </string>
+    <string name="privacy_policy_button">Zasady prywatności</string>
+    <string name="silent_zone_error">Cicha strefa nie mogła zostać zarejestrowana. Spróbuj ponownie później.</string>
+</resources>
